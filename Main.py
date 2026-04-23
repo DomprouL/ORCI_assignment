@@ -1,7 +1,9 @@
 import io
 import os
 import sys
+from Solver import Solver
 from Parser import load_model
+from Healpers import write_solution_to_file
 from SolutionValidator import validate_solution, parse_solution_file
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -16,6 +18,13 @@ def main(instance_file, solution_file, enforce_mandatory=True):
     print(f"Time limit per route (T_max): {model.t_max}")
     print(f"Enforce mandatory: {enforce_mandatory}")
 
+
+    #Solve
+    solver = Solver(model, seed=42)
+    final_solution = solver.solve_greedy(enforce_mandatory)
+
+    #write solution to file
+    write_solution_to_file(final_solution, solution_file)
     # Validate Solution
     if solution_file:
         if not os.path.exists(solution_file):
@@ -48,5 +57,5 @@ def main(instance_file, solution_file, enforce_mandatory=True):
 
 
 if __name__ == "__main__":
-    main("ctop_main_instance.txt", "solution_mandatory.txt", True)
+    #main("ctop_main_instance.txt", "solution_mandatory.txt", True)
     main("ctop_main_instance.txt", "solution_no_mandatory.txt", False)
