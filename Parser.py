@@ -72,3 +72,4 @@ def load_model(file_name):
         parsed_model.nodes.append(node)
 
     return parsed_model
+
