@@ -145,7 +145,7 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
             demand_norm = model.nodes[j].demand / avg_demand
             time_norm = added_time / avg_distance
 
-            alpha = 0.5
+            alpha = 0.6
 
             denominator = alpha * demand_norm + (1 - alpha)* time_norm
 
