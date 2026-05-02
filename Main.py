@@ -19,7 +19,7 @@ def main(instance_file):
     avg_demand = Helpers.compute_average_demand(model)
     avg_distance = Helpers.compute_average_distance(model)
 
-    neighbors_list_array, neighbors_set_array = Helpers.build_nearest_neighbors_heap(model, k=250)
+    neighbors_list_array, neighbors_set_array = Helpers.build_nearest_neighbors_heap(model, k=80)
 
     print(f"Average demand: {avg_demand:.2f}")
     print(f"Average distance: {avg_distance:.2f}")

@@ -154,6 +154,9 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
             
             score = model.nodes[j].profit / (denominator)
 
+            if model.nodes[j].demand == 1:
+                score += 20
+
             if score > best_score:
                 best_score = score
                 best_node = j
@@ -186,9 +189,9 @@ def find_best_global_insertion(model, routes, visited, avg_demand, avg_distance,
 
     return best_route, best_node, best_position, best_added_time, best_score
 
-# Starts with one route.
-# Opens a new empty route only when all existing routes have at least one customer.
-# Stops opening new routes when the number of routes reaches the number of vehicles.
+# # Starts with one route.
+# # Opens a new empty route only when all existing routes have at least one customer.
+# # Stops opening new routes when the number of routes reaches the number of vehicles.
 def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_array):
 
     routes = [Route()]
