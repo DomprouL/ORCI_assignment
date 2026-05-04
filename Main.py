@@ -25,16 +25,18 @@ def main(instance_file):
     print(f"Average distance: {avg_distance:.2f}")
 
     print("\n--- Constructing Initial Solution ---")
-    routes, visited = Helpers.construct_initial_solution(
+    
+    routes, visited, total_profit, total_time, used_routes = Helpers.multi_restart_initial_solution(
         model,
         avg_demand,
         avg_distance,
-        neighbors_set_array
+        neighbors_set_array,
+        restarts=3,
+        top_k=5,
+        seed=23
     )
 
     print("\n--- Initial Solution ---")
-
-    total_profit, total_time, used_routes = Helpers.compute_solution_totals(routes)
 
     print(f"Total profit: {total_profit}")
     print(f"Total time: {total_time:.2f}")

@@ -1,6 +1,7 @@
 import heapq
 from dataclasses import dataclass, field
 from typing import List
+import random
 
 
 @dataclass
@@ -167,33 +168,58 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
 
 # Finds the best feasible insertion among all available routes. 
 # It calls find_best_insertion_for_route for each route and keeps the insertion with the highest score.
-def find_best_global_insertion(model, routes, visited, avg_demand, avg_distance, neighbors_set_array):
+# def find_best_global_insertion(model, routes, visited, avg_demand, avg_distance, neighbors_set_array):
 
-    best_route = None
-    best_node = None
-    best_position = None
-    best_added_time = None
-    best_score = -1
+#     best_route = None
+#     best_node = None
+#     best_position = None
+#     best_added_time = None
+#     best_score = -1
 
-    for route in routes:
-        node, position, added_time, score = find_best_insertion_for_route(
-            model, route, visited, avg_demand, avg_distance, neighbors_set_array
-        )
+#     for route in routes:
+#         node, position, added_time, score = find_best_insertion_for_route(
+#             model, route, visited, avg_demand, avg_distance, neighbors_set_array
+#         )
 
-        if node is not None and score > best_score:
-            best_route = route
-            best_node = node
-            best_position = position
-            best_added_time = added_time
-            best_score = score
+#         if node is not None and score > best_score:
+#             best_route = route
+#             best_node = node
+#             best_position = position
+#             best_added_time = added_time
+#             best_score = score
 
-    return best_route, best_node, best_position, best_added_time, best_score
+#     return best_route, best_node, best_position, best_added_time, best_score
 
-# # Starts with one route.
-# # Opens a new empty route only when all existing routes have at least one customer.
-# # Stops opening new routes when the number of routes reaches the number of vehicles.
-def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_array):
+# Starts with one route.
+# Opens a new empty route only when all existing routes have at least one customer.
+# Stops opening new routes when the number of routes reaches the number of vehicles.
+# def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_array):
 
+#     routes = [Route()]
+#     visited = set()
+
+#     while True:
+
+#         all_routes_have_customer = all(len(route.nodes) > 2 for route in routes)
+
+#         if all_routes_have_customer and len(routes) < model.vehicles:
+#             routes.append(Route())
+
+#         best_route, node, position, added_time, score = find_best_global_insertion(
+#             model, routes, visited, avg_demand, avg_distance, neighbors_set_array
+#         )
+
+#         if node is None:
+#             break
+
+#         insert_node(model, best_route, node, position, added_time)
+#         visited.add(node)
+
+#     return routes, visited
+
+def construct_initial_solution(
+    model, avg_demand, avg_distance, neighbors_set_array, top_k=3
+):
     routes = [Route()]
     visited = set()
 
@@ -205,7 +231,13 @@ def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_ar
             routes.append(Route())
 
         best_route, node, position, added_time, score = find_best_global_insertion(
-            model, routes, visited, avg_demand, avg_distance, neighbors_set_array
+            model,
+            routes,
+            visited,
+            avg_demand,
+            avg_distance,
+            neighbors_set_array,
+            top_k
         )
 
         if node is None:
@@ -215,6 +247,30 @@ def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_ar
         visited.add(node)
 
     return routes, visited
+
+def find_best_global_insertion(
+    model, routes, visited, avg_demand, avg_distance, neighbors_set_array, top_k=3
+):
+    candidates = []
+
+    for route in routes:
+        node, position, added_time, score = find_best_insertion_for_route(
+            model, route, visited, avg_demand, avg_distance, neighbors_set_array
+        )
+
+        if node is not None:
+            candidates.append((score, route, node, position, added_time))
+
+    if not candidates:
+        return None, None, None, None, -1
+
+    candidates.sort(reverse=True, key=lambda x: x[0])
+
+    restricted_candidates = candidates[:top_k]
+
+    score, route, node, position, added_time = random.choice(restricted_candidates)
+
+    return route, node, position, added_time, score
 
 # Computes the total profit, total travel time, and number of used routes.
 def compute_solution_totals(routes):
@@ -231,3 +287,43 @@ def compute_solution_totals(routes):
             used_routes += 1
 
     return total_profit, total_time, used_routes
+
+def multi_restart_initial_solution(
+    model, avg_demand, avg_distance, neighbors_set_array,
+    restarts=100, top_k=3, seed=42
+):
+    import random
+    random.seed(seed)
+
+    best_routes = None
+    best_visited = None
+    best_profit = -1
+    best_time = float("inf")
+    best_used_routes = 0
+
+    print("\niteration current_solution best_solution")
+
+    for iteration in range(1, restarts + 1):
+
+        routes, visited = construct_initial_solution(
+            model,
+            avg_demand,
+            avg_distance,
+            neighbors_set_array,
+            top_k=top_k
+        )
+
+        current_profit, current_time, used_routes = compute_solution_totals(routes)
+
+        if current_profit > best_profit or (
+            current_profit == best_profit and current_time < best_time
+        ):
+            best_routes = routes
+            best_visited = visited
+            best_profit = current_profit
+            best_time = current_time
+            best_used_routes = used_routes
+
+        print(iteration, current_profit, best_profit, flush= True)
+
+    return best_routes, best_visited, best_profit, best_time, best_used_routes
