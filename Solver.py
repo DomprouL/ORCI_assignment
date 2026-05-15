@@ -1,5 +1,6 @@
+from Operators import apply_inter_route_swap, apply_inter_route_swap, apply_intra_route_swap, swap_intra_route, two_opt
 import Solution
-import Healpers
+import Helpers
 class Solver:
     def __init__(self, model, seed):
         self.model = model
@@ -10,7 +11,7 @@ class Solver:
         #uses minimum cost insertion heuristic to construct the initial solution
         # The code selection in based oh the utilization og the node
         initial_solution = Solution.Solution(self.model)
-        utilization = Healpers.calculate_utilization(self.model.nodes, enforce_mandatory)
+        utilization = Helpers.calculate_utilization(self.model.nodes, enforce_mandatory)
         #unvisited = set(range(1, self.model.num_nodes))  # Exclude depot
         total_load = initial_solution.total_load
         
@@ -40,9 +41,48 @@ class Solver:
            
         return initial_solution
 
-    def local_search(self, solution, enforce_mandatory=True):
-        # Implement a local search procedure to improve the solution
-        pass
+    # def local_search(self, solution):
+    #     improved = True
+    #     while improved:
+    #         old_profit = solution.total_profit
+    #         old_cost = solution.total_cost
+            
+    #         # Εφαρμογή βελτιώσεων
+    #         solution = apply_intra_route_swap(solution, self.model)
+    #         solution = two_opt(solution, self.model)
+    #         solution = apply_inter_route_swap(solution, self.model)
+            
+    #         # Έλεγχος αν υπήρξε πραγματική βελτίωση (σε κέρδος ή χρόνο)
+    #         solution.update_all_metrics()
+    #         if solution.total_profit > old_profit or (solution.total_profit == old_profit and solution.total_cost < old_cost):
+    #             improved = True
+    #         else:
+    #             improved = False
+    #     return solution
+        
+            
+    def local_search(self, solution):
+        improved = True
+        print("Starting local search...")
+        while improved:
+            old_profit = solution.total_profit
+            old_cost = solution.total_cost
+            
+            # Εφαρμογή βελτιώσεων
+            solution = apply_intra_route_swap(solution, self.model)
+            solution = two_opt(solution, self.model)
+            solution = apply_inter_route_swap(solution, self.model)
+            
+            # Έλεγχος αν υπήρξε πραγματική βελτίωση (σε κέρδος ή χρόνο)
+            solution.update_all_metrics()
+            if solution.total_profit > old_profit or (solution.total_profit == old_profit and solution.total_cost < old_cost):
+                improved = True
+            else:
+                improved = False
+        return solution
+
+
+        
 
     def alns(self, solution, enforce_mandatory=True):
         # Implement the ALNS metaheuristic to further improve the solution
@@ -53,7 +93,8 @@ class Solver:
     def solve(self, enforce_mandatory=True):
         # Main method to solve the problem
         initial_solution = self.solve_greedy(enforce_mandatory)
-        improved_solution = self.local_search(initial_solution, enforce_mandatory)
+        improved_solution = self.local_search(initial_solution)
 
         return improved_solution
+        # return initial_solution
         
