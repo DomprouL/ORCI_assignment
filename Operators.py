@@ -79,8 +79,7 @@ def apply_inter_route_swap(solution, model):
             route2 = new_solution.routes[j]
             load1 = sum(model.nodes[n].demand for n in route1)
             load2 = sum(model.nodes[n].demand for n in route2)
-            cost1 = get_route_cost(route1, model)
-            cost2 = get_route_cost(route2, model)
+            
             for k in range(1, len(route1) - 1):
                 for l in range(1, len(route2) - 1):
                     # Swap nodes
@@ -171,5 +170,7 @@ def two_opt(solution, model):
             new_solution.routes[r_idx] = route
 
     # Στο τέλος ενημερώνουμε όλα τα metrics του αντικειμένου Solution
-    new_solution.calculate_total_metrics() 
+    new_solution.update_all_metrics()
     return new_solution
+    
+    
