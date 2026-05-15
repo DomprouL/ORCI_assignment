@@ -343,12 +343,11 @@ class Solver:
         initial_solution.total_time = sum(r.time for r in initial_solution.routes)
 
         return initial_solution
-        # #return improved_solution
-        # return initial_solution
+
 
     def solve_no_mandatory(self):
 
-        return self.multi_restart_initial_solution(restarts=5, top_k=5)
+        return self.multi_restart_initial_solution(restarts=3, top_k=5)
 
 
 
