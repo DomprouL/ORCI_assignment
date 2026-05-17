@@ -173,3 +173,32 @@ def two_opt(solution, model):
     # Στο τέλος ενημερώνουμε όλα τα metrics του αντικειμένου Solution
     new_solution.calculate_total_metrics() 
     return new_solution
+
+
+def node_exchange(solution, model):
+    # αντικαθιστούμε ένα κόμβο σε μια διαδρομή με ένα κόμβο που δεν έχει εξυπηρετηθεί
+    unvisited = set(range(1, model.num_nodes)) - solution.visited
+
+    for route in solution.routes:
+        for i in range(1, len(route.nodes) - 1):
+            node_i = route.nodes[i]
+            A = route.nodes[i - 1]
+            B = route.nodes[i + 1]
+
+            for j in unvisited:
+                new_time = route.time - model.cost_matrix[A][node_i] - model.cost_matrix[node_i][B] + model.cost_matrix[j][B] + model.cost_matrix[A][j]
+                new_load = route.load - model.nodes[node_i].demand + model.nodes[j].demand
+                new_profit = route.profit - model.nodes[node_i].profit + model.nodes[j].profit
+
+                if new_time <= model.t_max and new_load <= model.capacity and new_profit > route.profit:
+                    route.nodes[i] = j
+                    route.time = new_time
+                    route.load = new_load
+                    route.profit = new_profit
+
+                    solution.visited.remove(node_i)
+                    solution.visited.add(j)
+                    unvisited.remove(j)
+                    unvisited.add(node_i)
+                    break
+    return solution

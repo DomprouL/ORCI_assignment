@@ -328,10 +328,6 @@ class Solver:
 
         return sol
 
-    def solve_mandatory(self):
-        # Main method to solve the problem
-        initial_solution = self.solve_greedy(True)
-        #improved_solution = self.local_search(initial_solution)
 
     def solve_mandatory(self):
 
@@ -346,8 +342,22 @@ class Solver:
 
 
     def solve_no_mandatory(self):
+        solution = self.multi_restart_initial_solution(restarts=3, top_k=5)
+        
+        from Operators import node_exchange
+        previous_profit = -1
+        while solution.total_profit > previous_profit:
+            previous_profit = solution.total_profit
+            solution = node_exchange(solution, self.model)
+            
+        return solution
 
-        return self.multi_restart_initial_solution(restarts=3, top_k=5)
+
+    def solve(self, enforce_mandatory=True):
+        if enforce_mandatory:
+            return self.solve_mandatory()
+        else:
+            return self.solve_no_mandatory()
 
 
 
