@@ -136,3 +136,30 @@ def calculate_utilization (nodes, enforce_mandatory=True):
         sorted_nodes = [node_id for node_id, _ in sorted(node_utilization, key=lambda x: x[1], reverse=True)]
     # Return the sorted list of node IDs based on utilization
     return sorted_nodes
+
+
+def cluster_mandatory_nodes(model, n_vehicles):
+    # ομαδοποιούμε τα mandatory nodes που είναι κοντά μεταξύ τους για να τα βάλουμε σε ένα φορτηγό
+    mandatory = [n.id for n in model.nodes if n.isMandatory]
+    
+    # Διάλεγουμε 5 κέντρα
+    centers = [mandatory[0]]
+    while len(centers) < n_vehicles:
+        best = None
+        best_dist = -1
+        for node in mandatory:
+            if node in centers:
+                continue
+            min_dist = min(model.cost_matrix[node][c] for c in centers)
+            if min_dist > best_dist:
+                best_dist = min_dist
+                best = node
+        centers.append(best)
+    
+    clusters = [[] for _ in range(n_vehicles)]
+    for node in mandatory:
+        closest = min(range(n_vehicles), 
+                     key=lambda k: model.cost_matrix[node][centers[k]])
+        clusters[closest].append(node)
+    
+    return clusters

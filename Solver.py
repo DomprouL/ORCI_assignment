@@ -214,59 +214,6 @@ class Solver:
 
         return best_solution
 
-    #def solve_greedy(self, enforce_mandatory=True):
-
-        # solution = Solution(self.model)
-        # print(type(solution))
-        # print(type(solution.routes))
-        # utilization = Helpers.calculate_utilization(
-        #     self.model.nodes,
-        #     enforce_mandatory
-        # )
-
-        # while utilization:
-
-        #     node_id = utilization.pop(0)
-        #     node = self.model.nodes[node_id]
-
-        #     best_route = None
-        #     best_pos = None
-        #     best_cost = float("inf")
-
-        #     for route in solution.routes:
-
-        #         for i in range(1, len(route.nodes)):
-
-        #             prev_node = route.nodes[i - 1]
-        #             next_node = route.nodes[i]
-
-        #             additional_cost = (
-        #                 self.model.cost_matrix[prev_node][node_id]
-        #                 + self.model.cost_matrix[node_id][next_node]
-        #                 - self.model.cost_matrix[prev_node][next_node]
-        #             )
-
-        #             if (
-        #                 route.load + node.demand <= self.model.capacity
-        #                 and route.time + additional_cost <= self.model.t_max
-        #             ):
-
-        #                 if additional_cost < best_cost:
-        #                     best_cost = additional_cost
-        #                     best_route = route
-        #                     best_pos = i
-
-        #     if best_route is not None:
-
-        #         self.insert_node(
-        #             best_route,
-        #             node_id,
-        #             best_pos,
-        #             best_cost
-        #         )
-
-        # return solution
-
 
 
     def solve_greedy(self, enforce_mandatory=True):
@@ -329,27 +276,74 @@ class Solver:
         return sol
 
 
+    def solve_mandatory_clustered(self):
+        from Helpers import cluster_mandatory_nodes
+        
+        #Ομαδοποίηση mandatory
+        clusters = cluster_mandatory_nodes(self.model, self.model.vehicles)
+        
+        routes = [Route() for _ in range(self.model.vehicles)]
+        visited = set()
+        
+        # Κάθε όχημα παίρνει τους mandatory της ομάδας του
+        for k, route in enumerate(routes):
+            for node_id in clusters[k]:
+                node, position, added_time, score = self.find_best_insertion_for_route(route, visited)
+                # καλύτερη θέση για τον συγκεκριμένο mandatory
+                best_pos = 1
+                best_time = float('inf')
+                for i in range(1, len(route.nodes)):
+                    a = route.nodes[i-1]
+                    b = route.nodes[i]
+                    delta = self.model.cost_matrix[a][node_id] + self.model.cost_matrix[node_id][b] - self.model.cost_matrix[a][b]
+                    new_time = route.time + delta
+                    if new_time <= self.model.t_max and route.load + self.model.nodes[node_id].demand <= self.model.capacity:
+                        if delta < best_time:
+                            best_time = delta
+                            best_pos = i
+                
+                self.insert_node(route, node_id, best_pos, best_time)
+                visited.add(node_id)
+        
+        # εισάγει τα μην mandatory με greedy τρόπο
+        while True:
+            best_route, node, position, added_time, score = self.find_best_global_insertion(routes, visited)
+            if node is None:
+                break
+            self.insert_node(best_route, node, position, added_time)
+            visited.add(node)
+        
+        solution = Solution(routes=routes, visited=visited)
+        solution.total_profit = sum(r.profit for r in routes)
+        solution.total_time = sum(r.time for r in routes)
+        solution.total_load = sum(r.load for r in routes)
+        
+        return solution
+
+
+
     def solve_mandatory(self):
-
-        initial_solution = self.solve_greedy(enforce_mandatory=True)
-
-        # (optional) sanity update
-        initial_solution.total_profit = sum(r.profit for r in initial_solution.routes)
-        initial_solution.total_load = sum(r.load for r in initial_solution.routes)
-        initial_solution.total_time = sum(r.time for r in initial_solution.routes)
-
-        return initial_solution
+        best_solution = None
+        best_profit = -1
+        
+        for _ in range(10):
+            solution = self.solve_mandatory_clustered()
+            if solution.total_profit > best_profit:
+                best_profit = solution.total_profit
+                best_solution = solution
+        
+        return best_solution
 
 
     def solve_no_mandatory(self):
-        solution = self.multi_restart_initial_solution(restarts=3, top_k=5)
+        solution = self.multi_restart_initial_solution(restarts=10, top_k=5)
         
         from Operators import node_exchange
         previous_profit = -1
         while solution.total_profit > previous_profit:
             previous_profit = solution.total_profit
             solution = node_exchange(solution, self.model)
-            
+        
         return solution
 
 
@@ -358,107 +352,3 @@ class Solver:
             return self.solve_mandatory()
         else:
             return self.solve_no_mandatory()
-
-
-
-
-# from Operators import apply_inter_route_swap, apply_inter_route_swap, apply_intra_route_swap, swap_intra_route, two_opt
-# import Solution
-# import Helpers
-# class Solver:
-#     def __init__(self, model, seed):
-#         self.model = model
-#         self.seed = seed 
-    
-#     def solve_greedy(self, enforce_mandatory=True):
-#         # Implement a greedy heuristic to construct an initial solution
-#         #uses minimum cost insertion heuristic to construct the initial solution
-#         # The code selection in based oh the utilization og the node
-#         initial_solution = Solution.Solution(self.model)
-#         utilization = Helpers.calculate_utilization(self.model.nodes, enforce_mandatory)
-#         #unvisited = set(range(1, self.model.num_nodes))  # Exclude depot
-#         total_load = initial_solution.total_load
-        
-#         while total_load < self.model.capacity and utilization:
-#             node_id = utilization.pop(0)
-#             node = self.model.nodes[node_id]
-#             selected_possition = None
-#             selected_route = None
-#             minimum_additional_cost = float('inf')
-#             for route in initial_solution.routes:
-#                 route_load = sum(self.model.nodes[n].demand for n in route)
-#                 for i in range(1, len(route)):
-#                     prev_node = route[i - 1]
-#                     next_node = route[i]
-#                     additional_cost = self.model.cost_matrix[prev_node][node_id] + self.model.cost_matrix[node_id][next_node] - self.model.cost_matrix[prev_node][next_node]
-#                     if route_load + node.demand <= self.model.capacity and initial_solution.route_costs[initial_solution.routes.index(route)] + additional_cost <= self.model.t_max:
-#                         if additional_cost < minimum_additional_cost:
-#                             minimum_additional_cost = additional_cost
-#                             selected_route = route
-#                             selected_possition = i
-#             if selected_route is not None:
-#                 selected_route.insert(selected_possition, node_id)
-#                 initial_solution.update_all_metrics()
-        
-        
-
-           
-#         return initial_solution
-
-#     # def local_search(self, solution):
-#     #     improved = True
-#     #     while improved:
-#     #         old_profit = solution.total_profit
-#     #         old_cost = solution.total_cost
-            
-#     #         # Εφαρμογή βελτιώσεων
-#     #         solution = apply_intra_route_swap(solution, self.model)
-#     #         solution = two_opt(solution, self.model)
-#     #         solution = apply_inter_route_swap(solution, self.model)
-            
-#     #         # Έλεγχος αν υπήρξε πραγματική βελτίωση (σε κέρδος ή χρόνο)
-#     #         solution.update_all_metrics()
-#     #         if solution.total_profit > old_profit or (solution.total_profit == old_profit and solution.total_cost < old_cost):
-#     #             improved = True
-#     #         else:
-#     #             improved = False
-#     #     return solution
-        
-            
-#     def local_search(self, solution):
-#         improved = True
-#         print("Starting local search...")
-#         while improved:
-#             old_profit = solution.total_profit
-#             old_cost = solution.total_cost
-            
-#             # Εφαρμογή βελτιώσεων
-#             solution = apply_intra_route_swap(solution, self.model)
-#             solution = two_opt(solution, self.model)
-#             solution = apply_inter_route_swap(solution, self.model)
-            
-#             # Έλεγχος αν υπήρξε πραγματική βελτίωση (σε κέρδος ή χρόνο)
-#             solution.update_all_metrics()
-#             if solution.total_profit > old_profit or (solution.total_profit == old_profit and solution.total_cost < old_cost):
-#                 improved = True
-#             else:
-#                 improved = False
-#         return solution
-
-
-        
-
-#     def alns(self, solution, enforce_mandatory=True):
-#         # Implement the ALNS metaheuristic to further improve the solution
-#         pass
-
-    
-
-#     def solve(self, enforce_mandatory=True):
-#         # Main method to solve the problem
-#         initial_solution = self.solve_greedy(enforce_mandatory)
-#         improved_solution = self.local_search(initial_solution)
-
-#         return improved_solution
-#         # return initial_solution
-        
