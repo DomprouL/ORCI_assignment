@@ -136,3 +136,16 @@ def calculate_utilization (nodes, enforce_mandatory=True):
         sorted_nodes = [node_id for node_id, _ in sorted(node_utilization, key=lambda x: x[1], reverse=True)]
     # Return the sorted list of node IDs based on utilization
     return sorted_nodes
+
+def calculate_total_cost(model, routes):
+    total_cost = 0
+
+    for route in routes:
+        nodes = route.nodes  
+
+        total_cost += sum(
+            model.cost_matrix[a][b]
+            for a, b in zip(nodes[:-1], nodes[1:])
+        )
+
+    return total_cost
