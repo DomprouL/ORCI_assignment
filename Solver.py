@@ -217,59 +217,6 @@ class Solver:
 
         return best_solution
 
-    #def solve_greedy(self, enforce_mandatory=True):
-
-        # solution = Solution(self.model)
-        # print(type(solution))
-        # print(type(solution.routes))
-        # utilization = Helpers.calculate_utilization(
-        #     self.model.nodes,
-        #     enforce_mandatory
-        # )
-
-        # while utilization:
-
-        #     node_id = utilization.pop(0)
-        #     node = self.model.nodes[node_id]
-
-        #     best_route = None
-        #     best_pos = None
-        #     best_cost = float("inf")
-
-        #     for route in solution.routes:
-
-        #         for i in range(1, len(route.nodes)):
-
-        #             prev_node = route.nodes[i - 1]
-        #             next_node = route.nodes[i]
-
-        #             additional_cost = (
-        #                 self.model.cost_matrix[prev_node][node_id]
-        #                 + self.model.cost_matrix[node_id][next_node]
-        #                 - self.model.cost_matrix[prev_node][next_node]
-        #             )
-
-        #             if (
-        #                 route.load + node.demand <= self.model.capacity
-        #                 and route.time + additional_cost <= self.model.t_max
-        #             ):
-
-        #                 if additional_cost < best_cost:
-        #                     best_cost = additional_cost
-        #                     best_route = route
-        #                     best_pos = i
-
-        #     if best_route is not None:
-
-        #         self.insert_node(
-        #             best_route,
-        #             node_id,
-        #             best_pos,
-        #             best_cost
-        #         )
-
-        # return solution
-
 
 
     def solve_greedy(self, enforce_mandatory=True):
@@ -331,56 +278,85 @@ class Solver:
 
         return sol
 
-    # def solve_mandatory(self, restarts=20, top_k=3):
 
-    #     best_solution = None
-    #     best_profit = -1
-    #     best_time = float("inf")
+    def solve_mandatory_clustered(self):
+        from Helpers import cluster_mandatory_nodes
+        
+        #Ομαδοποίηση mandatory
+        clusters = cluster_mandatory_nodes(self.model, self.model.vehicles)
+        
+        routes = [Route() for _ in range(self.model.vehicles)]
+        visited = set()
+        
+        # Κάθε όχημα παίρνει τους mandatory της ομάδας του
+        for k, route in enumerate(routes):
+            for node_id in clusters[k]:
+                node, position, added_time, score = self.find_best_insertion_for_route(route, visited)
+                # καλύτερη θέση για τον συγκεκριμένο mandatory
+                best_pos = 1
+                best_time = float('inf')
+                for i in range(1, len(route.nodes)):
+                    a = route.nodes[i-1]
+                    b = route.nodes[i]
+                    delta = self.model.cost_matrix[a][node_id] + self.model.cost_matrix[node_id][b] - self.model.cost_matrix[a][b]
+                    new_time = route.time + delta
+                    if new_time <= self.model.t_max and route.load + self.model.nodes[node_id].demand <= self.model.capacity:
+                        if delta < best_time:
+                            best_time = delta
+                            best_pos = i
+                
+                self.insert_node(route, node_id, best_pos, best_time)
+                visited.add(node_id)
+        
+        # εισάγει τα μην mandatory με greedy τρόπο
+        while True:
+            best_route, node, position, added_time, score = self.find_best_global_insertion(routes, visited)
+            if node is None:
+                break
+            self.insert_node(best_route, node, position, added_time)
+            visited.add(node)
+        
+        solution = Solution(routes=routes, visited=visited)
+        solution.total_profit = sum(r.profit for r in routes)
+        solution.total_time = sum(r.time for r in routes)
+        solution.total_load = sum(r.load for r in routes)
+        
+        return solution
 
-    #     for _ in range(restarts):
 
-    #         sol = self.construct_initial_solution(top_k=top_k)
-
-    #         # VALIDITY FILTER (mandatory must be satisfied)
-    #         visited = sol.visited
-
-    #         all_mandatory_ok = all(
-    #             (not n.isMandatory) or (n.id in visited)
-    #             for n in self.model.nodes
-    #         )
-
-    #         if not all_mandatory_ok:
-    #             continue
-
-    #         if (sol.total_profit > best_profit or
-    #             (sol.total_profit == best_profit and sol.total_time < best_time)):
-
-    #             best_solution = sol
-    #             best_profit = sol.total_profit
-    #             best_time = sol.total_time
-
-    #     return best_solution
 
     def solve_mandatory(self):
-
-        initial_solution = self.solve_greedy(enforce_mandatory=True)
-
-        # (optional) sanity update
-        initial_solution.total_profit = sum(r.profit for r in initial_solution.routes)
-        initial_solution.total_load = sum(r.load for r in initial_solution.routes)
-        initial_solution.total_time = sum(r.time for r in initial_solution.routes)
-
-        alns = ALNS_mandatory(self.model,self.seed)
-        #solution = alns.run(initial_solution, interations=500)
-        solution = local_search(self.model, initial_solution)
-        return solution
-        return initial_solution
+        best_solution = None
+        best_profit = -1
+        
+        for _ in range(10):
+            solution = self.solve_mandatory_clustered()
+            if solution.total_profit > best_profit:
+                best_profit = solution.total_profit
+                best_solution = solution
+        
+        # alns = ALNS_mandatory(self.model,self.seed)
+        # #solution = alns.run(initial_solution, interations=500)
+        # solution = local_search(self.model, initial_solution)
+        # return solution
+    
+        return best_solution
 
 
     def solve_no_mandatory(self):
-        initial_solution = self.multi_restart_initial_solution(restarts=3, top_k=5)
-
-        alns = ALNS(self.model,self.seed)
-        solution = alns.run(initial_solution, interations=500)
+        solution = self.multi_restart_initial_solution(restarts=10, top_k=5)
+        
+        from Operators import node_exchange
+        previous_profit = -1
+        while solution.total_profit > previous_profit:
+            previous_profit = solution.total_profit
+            solution = node_exchange(solution, self.model)
+        
         return solution
 
+
+    def solve(self, enforce_mandatory=True):
+        if enforce_mandatory:
+            return self.solve_mandatory()
+        else:
+            return self.solve_no_mandatory()
