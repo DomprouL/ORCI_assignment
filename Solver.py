@@ -3,7 +3,8 @@ import Helpers
 import copy
 from ALNS import ALNS
 from ALNS_mandatory import ALNS as ALNS_mandatory
-
+from PathRelinking import EliteSet, path_relinking
+from ACO import ACO
 from LocalSearch import local_search
 from Solution import Route, Solution
 
@@ -279,6 +280,7 @@ class Solver:
         return sol
 
 
+
     def solve_mandatory_clustered(self):
         from Helpers import cluster_mandatory_nodes
         
@@ -326,34 +328,90 @@ class Solver:
 
 
     def solve_mandatory(self):
-        best_solution = None
+        # Βήμα 1: Αρχική έγκυρη λύση (με όλους τους mandatory)
+        solution = None
         best_profit = -1
-        
         for _ in range(10):
-            solution = self.solve_mandatory_clustered()
-            if solution.total_profit > best_profit:
-                best_profit = solution.total_profit
-                best_solution = solution
-        
-        # alns = ALNS_mandatory(self.model,self.seed)
-        # #solution = alns.run(initial_solution, interations=500)
-        # solution = local_search(self.model, initial_solution)
-        # return solution
-    
-        return best_solution
+            candidate = self.solve_mandatory_clustered()
+            if candidate.total_profit > best_profit:
+                best_profit = candidate.total_profit
+                solution = candidate
 
+        print(f"Before Local Search: {solution.total_profit}")
+
+        # Βήμα 2: Local search (mandatory-aware)
+        solution = local_search(self.model, solution, enforce_mandatory=True)
+        print(f"After Local Search: {solution.total_profit}")
+
+        # Βήμα 3: ALNS με mandatory-aware operators
+        elite = EliteSet(self.model, max_size=5, enforce_mandatory=True)
+        elite.try_add(solution)
+
+        alns = ALNS_mandatory(self.model, self.seed)
+        alns_sol = alns.run(solution, iterations=500)
+        print(f"After ALNS: {alns_sol.total_profit}")
+        elite.try_add(alns_sol)
+
+        # Βήμα 4: Path Relinking μεταξύ ALNS αποτελέσματος και elite λύσεων
+        best_sol = copy.deepcopy(alns_sol)
+        for target in elite.solutions:
+            pr_sol = path_relinking(
+                self.model, alns_sol, target, enforce_mandatory=True
+            )
+            if pr_sol.total_profit > best_sol.total_profit:
+                best_sol = pr_sol
+                print(f"Path Relinking improvement: {best_sol.total_profit}")
+        # Βήμα 5: Τελικό local search
+        best_sol = local_search(self.model, best_sol, enforce_mandatory=True)
+        print(f"Final solution: {best_sol.total_profit}")
+
+        return best_sol
+
+
+    # def solve_no_mandatory(self):
+    #     solution = self.multi_restart_initial_solution(restarts=10, top_k=5)
+        
+    #     from Operators import node_exchange
+    #     previous_profit = -1
+    #     while solution.total_profit > previous_profit:
+    #         previous_profit = solution.total_profit
+    #         solution = node_exchange(solution, self.model)
+        
+    #     return solution
+    
 
     def solve_no_mandatory(self):
-        solution = self.multi_restart_initial_solution(restarts=10, top_k=5)
-        
-        from Operators import node_exchange
-        previous_profit = -1
-        while solution.total_profit > previous_profit:
-            previous_profit = solution.total_profit
-            solution = node_exchange(solution, self.model)
-        
-        return solution
+        # Βήμα 1: Αρχική λύση με multi-restart greedy
+        initial_sol = self.multi_restart_initial_solution(restarts=10, top_k=5)
+        print(f"Αρχική λύση: {initial_sol.total_profit}")
 
+        # Βήμα 2: Local Search για γρήγορη βελτίωση
+        solution = local_search(self.model, initial_sol)
+        print(f"Μετά Local Search: {solution.total_profit}")
+
+        # Βήμα 3: ALNS με elite set για Path Relinking
+        from ALNS import ALNS
+        elite = EliteSet(self.model, max_size=5, enforce_mandatory=False)
+        elite.try_add(solution)
+
+        alns = ALNS(self.model, self.seed)
+        alns_sol = alns.run(solution, iterations=500)
+        elite.try_add(alns_sol)
+        print(f"Μετά ALNS: {alns_sol.total_profit}")
+
+        # Βήμα 4: Path Relinking μεταξύ ALNS αποτελέσματος και elite λύσεων
+        best_sol = copy.deepcopy(alns_sol)
+        for target in elite.solutions:
+            pr_sol = path_relinking(self.model, alns_sol, target)
+            if pr_sol.total_profit > best_sol.total_profit:
+                best_sol = pr_sol
+                print(f"Path Relinking βελτίωση: {best_sol.total_profit}")
+
+        # Βήμα 5: Τελικό Local Search
+        best_sol = local_search(self.model, best_sol)
+        print(f"Τελική λύση: {best_sol.total_profit}")
+
+        return best_sol
 
     def solve(self, enforce_mandatory=True):
         if enforce_mandatory:

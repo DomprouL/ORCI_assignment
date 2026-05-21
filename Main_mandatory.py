@@ -20,7 +20,6 @@ def main(instance_file, solution_file, enforce_mandatory=True):
 
     solver = Solver(model, seed=23)
     final_solution = solver.solve_mandatory()
-    
 
     #write solution to file
     write_solution_to_file(final_solution, solution_file)

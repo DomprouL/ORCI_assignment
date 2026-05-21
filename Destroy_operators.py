@@ -121,3 +121,122 @@ def worst_destroy(model, solution, remove_ratio=0.2):
     update_solution_metrics(sol)
 
     return sol, removed_nodes
+
+
+# ─── Mandatory-aware destroy operators ───────────────────────────────────────
+# Ίδια λογική με τους κανονικούς, αλλά ποτέ δεν αφαιρούν mandatory κόμβους.
+# Εγγυώνται ότι η λύση παραμένει feasible ως προς το mandatory constraint.
+
+def random_destroy_mandatory(model, solution, remove_ratio=0.2):
+    """
+    Τυχαία αφαίρεση κόμβων, εξαιρώντας mandatory.
+    Αν δεν υπάρχουν optional κόμβοι προς αφαίρεση, επιστρέφει τη λύση αναλλοίωτη.
+    """
+    sol = copy.deepcopy(solution)
+
+    # Συλλογή ΜΟΝΟ optional κόμβων (εξαιρούμε depot=0 και mandatory)
+    optional_nodes = []
+    for r_idx, route in enumerate(sol.routes):
+        for pos in range(1, len(route.nodes) - 1):
+            node = route.nodes[pos]
+            if not model.nodes[node].isMandatory:
+                optional_nodes.append((r_idx, pos, node))
+
+    if not optional_nodes:
+        return sol, []
+
+    remove_count = max(1, int(len(optional_nodes) * remove_ratio))
+    selected     = random.sample(optional_nodes, min(remove_count, len(optional_nodes)))
+
+    removed_nodes = []
+
+    # Αντίστροφη ταξινόμηση κατά position για να μην μετατοπιστούν τα indices
+    selected.sort(reverse=True, key=lambda x: x[1])
+
+    for r_idx, pos, node in selected:
+        route = sol.routes[r_idx]
+        a = route.nodes[pos - 1]
+        b = route.nodes[pos + 1]
+
+        delta = (
+            model.cost_matrix[a][node]
+            + model.cost_matrix[node][b]
+            - model.cost_matrix[a][b]
+        )
+
+        route.nodes.pop(pos)
+        route.load   -= model.nodes[node].demand
+        route.time   -= delta
+        route.profit -= model.nodes[node].profit
+
+        removed_nodes.append(node)
+
+    update_solution_metrics(sol)
+    return sol, removed_nodes
+
+
+def worst_destroy_mandatory(model, solution, remove_ratio=0.2):
+    """
+    Αφαίρεση optional κόμβων με το χειρότερο profit/cost ratio (worst removal).
+    Ποτέ δεν αφαιρεί mandatory κόμβους.
+    """
+    sol        = copy.deepcopy(solution)
+    candidates = []
+
+    for r_idx, route in enumerate(sol.routes):
+        for pos in range(1, len(route.nodes) - 1):
+            node = route.nodes[pos]
+
+            # ΚΑΝΟΝΑΣ: παράλειψη mandatory κόμβων
+            if model.nodes[node].isMandatory:
+                continue
+
+            a = route.nodes[pos - 1]
+            b = route.nodes[pos + 1]
+
+            delta = (
+                model.cost_matrix[a][node]
+                + model.cost_matrix[node][b]
+                - model.cost_matrix[a][b]
+            )
+
+            if delta <= 0:
+                continue
+
+            # Χαμηλό score = κόμβος "αξίζει λίγο" σε σχέση με τον χρόνο που καταναλώνει
+            score = model.nodes[node].profit / delta
+            candidates.append((score, r_idx, pos, node))
+
+    if not candidates:
+        return sol, []
+
+    candidates.sort()  # Αύξουσα: οι χειρότεροι πρώτοι
+
+    remove_count = max(1, int(len(candidates) * remove_ratio))
+    selected     = candidates[:remove_count]
+
+    removed_nodes = []
+
+    # Αντίστροφη ταξινόμηση κατά position για να μην μετατοπιστούν τα indices
+    selected.sort(reverse=True, key=lambda x: x[2])
+
+    for _, r_idx, pos, node in selected:
+        route = sol.routes[r_idx]
+        a = route.nodes[pos - 1]
+        b = route.nodes[pos + 1]
+
+        delta = (
+            model.cost_matrix[a][node]
+            + model.cost_matrix[node][b]
+            - model.cost_matrix[a][b]
+        )
+
+        route.nodes.pop(pos)
+        route.load   -= model.nodes[node].demand
+        route.time   -= delta
+        route.profit -= model.nodes[node].profit
+
+        removed_nodes.append(node)
+
+    update_solution_metrics(sol)
+    return sol, removed_nodes
