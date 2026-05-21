@@ -5,7 +5,7 @@ import Helpers
 from Parser import load_model
 from SolutionPlotter import plot_ctop_solution
 from Time_Operators import time_vnd, total_solution_time, total_solution_profit
-
+from SolutionValidator import validate_solution
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 
