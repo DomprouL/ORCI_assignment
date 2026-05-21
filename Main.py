@@ -59,8 +59,8 @@ def main(instance_file):
         old_time = total_solution_time(routes)
 
         # Step 1: compress current routes using time operators
-        time_improved = time_vnd(model, routes)
-
+        time_improved = time_vnd(model, routes, neighbors_set_array)
+        
         after_vnd_profit = total_solution_profit(routes)
         after_vnd_time = total_solution_time(routes)
 
