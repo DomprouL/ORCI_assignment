@@ -114,5 +114,18 @@ def main(instance_file):
 
     plot_ctop_solution(model, routes_for_plot)
 
+    valid, report = validate_solution(model, routes_for_plot, enforce_mandatory=False)
+    if valid:
+        print("\n✅ Solution is VALID.")
+        print(f"🏆 Total Profit Collected: {report['total_profit']}")
+        print("\nRoute Details:")
+        for i, (load, cost, profit) in enumerate(zip(report['route_loads'], report['route_costs'], report['route_profits'])):
+            print(f"Route {i} -> Load = {load}/{model.capacity}, Time = {cost:.2f}/{model.t_max}, Profit = {profit}")
+    else:
+        print("\n❌ Solution is INVALID.")
+        print("Errors Found:")
+        for error in report['errors']:
+            print(f" - {error}")
+
 if __name__ == "__main__":
     main("ctop_main_instance.txt")

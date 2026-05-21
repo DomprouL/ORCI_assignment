@@ -21,6 +21,8 @@ class Model:
     nodes: List[Node] = None
     cost_matrix: List[List[float]] = None
 
+    
+
 
 def load_model(file_name):
     """
