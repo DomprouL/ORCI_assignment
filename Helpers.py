@@ -22,7 +22,7 @@ class Route:
 # The neighbor IDs are stored in a list (per node) in sorted order, allowing efficient access based on proximity.
 # Additionally, I store the same neighbor IDs in a set (per node) to enable faster lookup and set operations.
 # A min-heap is used due to its favorable time complexity and efficiency compared to alternative approaches.
-def build_nearest_neighbors_heap(model, k=50):
+def build_nearest_neighbors_heap(model, k=80):
 
     neighbors_list_array = []
     neighbors_set_array = []
@@ -146,7 +146,7 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
             demand_norm = model.nodes[j].demand / avg_demand
             time_norm = added_time / avg_distance
 
-            alpha = 0.6
+            alpha = 0.8
 
             denominator = alpha * demand_norm + (1 - alpha)* time_norm
 
@@ -165,57 +165,6 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
                 best_added_time = added_time
 
     return best_node, best_position, best_added_time, best_score
-
-# Finds the best feasible insertion among all available routes. 
-# It calls find_best_insertion_for_route for each route and keeps the insertion with the highest score.
-# def find_best_global_insertion(model, routes, visited, avg_demand, avg_distance, neighbors_set_array):
-
-#     best_route = None
-#     best_node = None
-#     best_position = None
-#     best_added_time = None
-#     best_score = -1
-
-#     for route in routes:
-#         node, position, added_time, score = find_best_insertion_for_route(
-#             model, route, visited, avg_demand, avg_distance, neighbors_set_array
-#         )
-
-#         if node is not None and score > best_score:
-#             best_route = route
-#             best_node = node
-#             best_position = position
-#             best_added_time = added_time
-#             best_score = score
-
-#     return best_route, best_node, best_position, best_added_time, best_score
-
-# Starts with one route.
-# Opens a new empty route only when all existing routes have at least one customer.
-# Stops opening new routes when the number of routes reaches the number of vehicles.
-# def construct_initial_solution(model, avg_demand, avg_distance, neighbors_set_array):
-
-#     routes = [Route()]
-#     visited = set()
-
-#     while True:
-
-#         all_routes_have_customer = all(len(route.nodes) > 2 for route in routes)
-
-#         if all_routes_have_customer and len(routes) < model.vehicles:
-#             routes.append(Route())
-
-#         best_route, node, position, added_time, score = find_best_global_insertion(
-#             model, routes, visited, avg_demand, avg_distance, neighbors_set_array
-#         )
-
-#         if node is None:
-#             break
-
-#         insert_node(model, best_route, node, position, added_time)
-#         visited.add(node)
-
-#     return routes, visited
 
 def construct_initial_solution(
     model, avg_demand, avg_distance, neighbors_set_array, top_k=3
