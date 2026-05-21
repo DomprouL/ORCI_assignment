@@ -124,8 +124,6 @@ def intra_2opt_best_improvement(model, route, neighbors_set_array):
             c = nodes[j]
             d = nodes[j + 1]
 
-            # After 2-opt, the new boundary edges are a-c and b-d.
-            # We only test this move if at least one new boundary edge is RCL-compatible.
             if not (
                 are_neighbors(a, c, neighbors_set_array)
                 or are_neighbors(b, d, neighbors_set_array)
@@ -175,7 +173,6 @@ def intra_relocate_best_improvement(model, route, neighbors_set_array):
             left = remaining_nodes[insert_pos - 1]
             right = remaining_nodes[insert_pos]
 
-            # The relocated customer must be close to at least one of its new neighbors.
             if not (
                 are_neighbors(customer, left, neighbors_set_array)
                 or are_neighbors(customer, right, neighbors_set_array)
@@ -224,8 +221,6 @@ def intra_swap_best_improvement(model, route, neighbors_set_array):
             left_j = nodes[j - 1]
             right_j = nodes[j + 1]
 
-            # After the swap, node_j goes to position i and node_i goes to position j.
-            # We require each moved node to be close to at least one of its new neighbors.
             valid_for_i_position = (
                 are_neighbors(node_j, left_i, neighbors_set_array)
                 or are_neighbors(node_j, right_i, neighbors_set_array)
@@ -274,7 +269,6 @@ def inter_relocate_best_improvement(model, route_a, route_b, neighbors_set_array
             left = route_b.nodes[insert_pos - 1]
             right = route_b.nodes[insert_pos]
 
-            # Customer must be close to at least one of its new neighbors.
             if not (
                 are_neighbors(customer, left, neighbors_set_array)
                 or are_neighbors(customer, right, neighbors_set_array)
@@ -323,7 +317,6 @@ def inter_relocate_best_improvement(model, route_a, route_b, neighbors_set_array
             left = route_a.nodes[insert_pos - 1]
             right = route_a.nodes[insert_pos]
 
-            # Customer must be close to at least one of its new neighbors.
             if not (
                 are_neighbors(customer, left, neighbors_set_array)
                 or are_neighbors(customer, right, neighbors_set_array)
@@ -390,7 +383,6 @@ def inter_swap_best_improvement(model, route_a, route_b, neighbors_set_array):
             left_b = route_b.nodes[pos_b - 1]
             right_b = route_b.nodes[pos_b + 1]
 
-            # After the swap, node_b goes to route_a and node_a goes to route_b.
             valid_for_a_position = (
                 are_neighbors(node_b, left_a, neighbors_set_array)
                 or are_neighbors(node_b, right_a, neighbors_set_array)
@@ -472,9 +464,6 @@ def inter_2opt_best_improvement(model, route_a, route_b, neighbors_set_array):
             last_prefix_b = prefix_b[-1]
             first_suffix_b = suffix_b[0]
 
-            # After exchanging tails, the new boundary edges are:
-            # last_prefix_a -> first_suffix_b
-            # last_prefix_b -> first_suffix_a
             if not (
                 are_neighbors(last_prefix_a, first_suffix_b, neighbors_set_array)
                 or are_neighbors(last_prefix_b, first_suffix_a, neighbors_set_array)
