@@ -1,6 +1,6 @@
 import random
 import copy
-from mandatory.LocalSearch import _net_profit_global_exchange, local_search, _update_metrics
+from LocalSearch import _net_profit_global_exchange, local_search, _update_metrics
 
 
 class ILS:

@@ -1,5 +1,4 @@
 import heapq
-
 from pathlib import Path
 
 def write_solution_to_file(solution, filename):
@@ -11,7 +10,41 @@ def write_solution_to_file(solution, filename):
             if len(route.nodes) > 2:
                 f.write(" ".join(map(str, route.nodes)) + "\n")
 
-        
+# Κατασκευή λίστας k κοντινότερων γειτόνων για κάθε κόμβο.
+# Επιστρέφεται λίστα και σύνολο για γρήγορες αναζητήσεις.
+def build_nearest_neighbors_heap(model, k=75):
+
+    neighbors_list_array = []
+    neighbors_set_array = []
+
+    for i in range(model.num_nodes):
+
+        heap = []
+
+        for j in range(model.num_nodes):
+            if i == j:
+                continue
+
+            cost_ij = model.cost_matrix[i][j]
+
+            if len(heap) < k:
+                heapq.heappush(heap, (-cost_ij, j))
+
+            else:
+                current_max_cost = -heap[0][0]
+
+                if cost_ij < current_max_cost:
+                    heapq.heapreplace(heap, (-cost_ij, j))
+
+        nearest_neighbors = [node_id for neg_cost, node_id in heap]
+        nearest_neighbors.sort(key=lambda node_id: model.cost_matrix[i][node_id])
+
+        nearest_neighbors_set = set(nearest_neighbors)
+
+        neighbors_list_array.append(nearest_neighbors)
+        neighbors_set_array.append(nearest_neighbors_set)
+
+    return neighbors_list_array, neighbors_set_array        
 
 
 def compute_average_distance(model):

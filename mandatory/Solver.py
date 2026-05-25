@@ -1,13 +1,13 @@
 import random
 
 
-import mandatory.Helpers as Helpers
+import Helpers as Helpers
 import copy
 
-from mandatory.ILS import ILS
-from mandatory.PathRelinking import EliteSet, path_relinking
+from ILS import ILS
+from PathRelinking import EliteSet, path_relinking
 
-from mandatory.LocalSearch import local_search
+from LocalSearch import local_search
 from Solution import Route, Solution
 
 class Solver: 
@@ -24,7 +24,6 @@ class Solver:
             self.neighbors_list_array,
             self.neighbors_set_array
         ) = Helpers.build_nearest_neighbors_heap(model)
-
     
     def insert_node(self, route, node, position, added_time):
         route.nodes.insert(position, node)
@@ -33,10 +32,67 @@ class Solver:
         route.profit += self.model.nodes[node].profit
 
 
+    def find_best_insertion_for_route(self, route, visited):
+        best_score = -1
+        best_node = None
+        best_position = None
+        best_added_time = None
 
+        for i in range(len(route.nodes) - 1):
+            a = route.nodes[i]
+            b = route.nodes[i + 1]
+
+            set_a = self.neighbors_set_array[a]
+            set_b = self.neighbors_set_array[b]
+            candidates = set_a.union(set_b)
+
+            for j in candidates:
+                if j in visited or j == 0:
+                    continue
+
+                added_time = Helpers.calculate_added_time(self.model, a, j, b)
+                if not Helpers.is_feasible_insertion(self.model, route, j, added_time, visited):
+                    continue
+
+                demand_norm = self.model.nodes[j].demand / self.avg_demand
+                time_norm = added_time / self.avg_distance
+
+                alpha = 0.6
+                denominator = alpha * demand_norm + (1 - alpha) * time_norm
+
+                if denominator <= 0:
+                    continue
+                    
+                score = self.model.nodes[j].profit / denominator
+                if self.model.nodes[j].demand == 1:
+                    score += 20
+
+                if score > best_score:
+                    best_score = score
+                    best_node = j
+                    best_position = i + 1
+                    best_added_time = added_time
+
+        return best_node, best_position, best_added_time, best_score
+
+    def find_best_global_insertion(self, routes, visited, top_k=5):
+        candidates = []
+        for route in routes:
+            node, position, added_time, score = self.find_best_insertion_for_route(route, visited)
+            if node is not None:
+                candidates.append((score, route, node, position, added_time))
+
+        if not candidates:
+            return None, None, None, None, -1
+
+        candidates.sort(reverse=True, key=lambda x: x[0])
+        restricted_candidates = candidates[:top_k]
+        score, route, node, position, added_time = random.choice(restricted_candidates)
+
+        return route, node, position, added_time, score
 
     def solve_mandatory_clustered(self):
-        from mandatory.Helpers import cluster_mandatory_nodes
+        from Helpers import cluster_mandatory_nodes
         
         # Ομαδοποίηση mandatory
         clusters = cluster_mandatory_nodes(self.model, self.model.vehicles)
