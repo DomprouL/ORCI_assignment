@@ -313,12 +313,10 @@ def capacity_destroy_repair_search_sa(
 
     for iteration in range(1, iterations + 1):
 
-        progress = iteration / iterations
+        temperature = start_temperature / math.log(iteration + 2)
 
-        temperature = (
-            start_temperature
-            * ((end_temperature / start_temperature) ** progress)
-        )
+        if temperature < end_temperature:
+            temperature = end_temperature
 
         trial_routes = copy.deepcopy(current_routes)
         trial_visited = set(current_visited)
