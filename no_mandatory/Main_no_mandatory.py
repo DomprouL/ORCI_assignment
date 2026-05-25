@@ -3,7 +3,6 @@ import sys
 import io
 from pathlib import Path
 
-# 🌟 Όλα τα αρχεία είναι στον ίδιο φάκελο, οπότε τα imports γίνονται απευθείας!
 from Parser import load_model
 from SolutionValidator import validate_solution
 from SolutionPlotter import plot_ctop_solution
