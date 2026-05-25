@@ -1,7 +1,5 @@
 import heapq
-from dataclasses import dataclass, field
-from typing import List
-import random
+
 
 def write_solution_to_file(solution, filename):
 
@@ -18,7 +16,7 @@ def write_solution_to_file(solution, filename):
 # The neighbor IDs are stored in a list (per node) in sorted order, allowing efficient access based on proximity.
 # Additionally, I store the same neighbor IDs in a set (per node) to enable faster lookup and set operations.
 # A min-heap is used due to its favorable time complexity and efficiency compared to alternative approaches.
-def build_nearest_neighbors_heap(model, k=80):
+def build_nearest_neighbors_heap(model, k=75):
 
     neighbors_list_array = []
     neighbors_set_array = []
@@ -104,39 +102,6 @@ def is_feasible_insertion(model, route, j, added_time, visited):
 
 
 
-# Gets a list of nodes, Calculates the total utilization of each node (profit/demand) and returns a list of node IDs sorted by utilization in descending order
-# If enforce_mandatory is True, mandatory nodes will be prioritized in the utilization list regardless of their profit/demand ratio
-def calculate_utilization (nodes, enforce_mandatory=True):
-    if enforce_mandatory:
-        node_utilization = []
-        mandatory_nodes = []
-        optional_nodes = []
-        for node in nodes:
-            if node.demand > 0:
-                utilization = node.profit / node.demand
-                
-                if node.isMandatory:
-                    mandatory_nodes.append((node.id, utilization))
-                else:
-                    optional_nodes.append((node.id, utilization))
-        
-
-        # Sort mandatory nodes by profit/demand ratio
-        mandatory_nodes_sorted = (node_id for node_id, _ in sorted(mandatory_nodes, key=lambda x: x[1], reverse=True))
-        # Sort optional nodes by profit/demand ratio
-        optional_nodes_sorted = (node_id for node_id, _ in sorted(optional_nodes, key=lambda x: x[1], reverse=True))
-
-        # Combine mandatory and optional nodes, with mandatory nodes first
-        sorted_nodes = list(mandatory_nodes_sorted) + list(optional_nodes_sorted)
-    else:
-        node_utilization = []
-        for node in nodes:
-            if node.demand > 0:
-                node_utilization.append((node.id, node.profit / node.demand))
-        sorted_nodes = [node_id for node_id, _ in sorted(node_utilization, key=lambda x: x[1], reverse=True)]
-    # Return the sorted list of node IDs based on utilization
-    return sorted_nodes
-
 
 def cluster_mandatory_nodes(model, n_vehicles):
     # ομαδοποιούμε τα mandatory nodes που είναι κοντά μεταξύ τους για να τα βάλουμε σε ένα φορτηγό
@@ -163,17 +128,3 @@ def cluster_mandatory_nodes(model, n_vehicles):
         clusters[closest].append(node)
     
     return clusters
-
-
-def calculate_total_cost(model, routes):
-    total_cost = 0
-
-    for route in routes:
-        nodes = route.nodes  
-
-        total_cost += sum(
-            model.cost_matrix[a][b]
-            for a, b in zip(nodes[:-1], nodes[1:])
-        )
-
-    return total_cost

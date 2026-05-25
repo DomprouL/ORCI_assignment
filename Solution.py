@@ -1,7 +1,13 @@
 from dataclasses import dataclass, field
 from typing import List, Set
 
-
+@dataclass
+class Column:
+    nodes: list
+    profit: float
+    cost: float
+    visits: set
+    
 @dataclass
 class Route:
     # Sequence of node IDs (always starts and ends with depot = 0)

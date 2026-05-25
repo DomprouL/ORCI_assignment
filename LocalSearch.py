@@ -1,571 +1,158 @@
-# # #swap in the same route
-# # # def swap_intra_route(route):
-# # #     new_route = route.copy()
-# # #     best_cost = float('inf')
-# # #     best_route = new_route.copy()
-# # #     if len(new_route) <= 3:  # Not enough nodes to swap (excluding depot)
-# # #         return False
-
-# # #     for i in range(1, len(new_route) - 2):
-# # #         for j in range(i + 1, len(new_route) - 1):
-            
-# # #             # Swap nodes at positions i and j
-# # #             new_route[i], new_route[j] = new_route[j], new_route[i]
-# # #             new_route.update_all_metrics()  # Update metrics after swap
-# # #             if new_route.total_cost < best_cost:
-# # #                 best_cost = new_route.total_cost
-# # #                 best_route = new_route.copy()
-# # #             # Swap back to original positions for next iteration
-# # #             new_route[i], new_route[j] = new_route[j], new_route[i]
-# # #             new_route.update_all_metrics()  # Update metrics after swap back
-    
-# # #     return best_route
-
-
-# # import copy
-
-
-# # def get_route_cost(route, model):
-# #     """Βοηθητική συνάρτηση: Υπολογίζει το χρόνο μιας λίστας κόμβων."""
-# #     cost = 0
-# #     for i in range(len(route) - 1):
-# #         cost += model.cost_matrix[route[i]][route[i+1]]
-# #     return cost
-
-# # def swap_intra_route(route, model):
-# #     best_route = route[:]
-# #     current_best_cost = get_route_cost(route, model)
-# #     improved = False
-
-# #     # Ξεκινάμε από το 1 και τελειώνουμε στο len-2 για να ΜΗΝ πειράξουμε τα Depot (0)
-# #     for i in range(1, len(route) - 1):
-# #         for j in range(i + 1, len(route) - 1):
-# #             temp_route = route[:]
-# #             temp_route[i], temp_route[j] = temp_route[j], temp_route[i]
-            
-# #             new_cost = get_route_cost(temp_route, model)
-# #             if new_cost < current_best_cost:
-# #                 current_best_cost = new_cost
-# #                 best_route = temp_route[:]
-# #                 improved = True
-    
-# #     return best_route, improved
-
-# # def swap_all_intra_route(routes, model):
-# #     new_routes = []
-# #     for route in routes:
-# #         swapped_route, improved = swap_intra_route(route, model)
-# #         if improved:
-# #             new_routes.append(swapped_route)
-# #         else:
-# #             new_routes.append(route)  # No swap possible, keep original
-# #     return new_routes
-
-
-# # def apply_intra_route_swap(solution, model):
-# #     new_solution = copy.deepcopy(solution)
-# #     new_solution.routes = swap_all_intra_route(new_solution.routes, model)
-# #     new_solution.update_all_metrics()
-# #     return new_solution
-
-
-
-# # def apply_inter_route_swap(solution, model):
-# #     new_solution = copy.deepcopy(solution)
-# #     improved = False
-# #     for i in range(len(new_solution.routes)):
-# #         for j in range(i + 1, len(new_solution.routes)):
-# #             route1 = new_solution.routes[i]
-# #             route2 = new_solution.routes[j]
-# #             load1 = sum(model.nodes[n].demand for n in route1)
-# #             load2 = sum(model.nodes[n].demand for n in route2)
-# #             cost1 = get_route_cost(route1, model)
-# #             cost2 = get_route_cost(route2, model)
-# #             for k in range(1, len(route1) - 1):
-# #                 for l in range(1, len(route2) - 1):
-# #                     # Swap nodes
-# #                     temp_route1 = route1[:]
-# #                     temp_route2 = route2[:]
-# #                     temp_route1[k], temp_route2[l] = temp_route2[l], temp_route1[k]
-# #                     new_load1 = load1 - model.nodes[route1[k]].demand + model.nodes[route2[l]].demand
-# #                     new_load2 = load2 - model.nodes[route2[l]].demand + model.nodes[route1[k]].demand
-# #                     if new_load1 > model.capacity or new_load2 > model.capacity:
-# #                         continue
-# #                     new_cost1 = get_route_cost(temp_route1, model)
-# #                     new_cost2 = get_route_cost(temp_route2, model)
-# #                     if new_cost1 > model.t_max or new_cost2 > model.t_max:
-# #                         continue
-# #                     if new_cost1 + new_cost2 < cost1 + cost2:
-# #                         # Accept the swap
-# #                         new_solution.routes[i] = temp_route1
-# #                         new_solution.routes[j] = temp_route2
-# #                         new_solution.update_all_metrics()
-# #                         improved = True
-# #                         break
-# #                 if improved:
-# #                     break
-# #             if improved:
-# #                 break
-# #         if improved:
-# #             break
-# #     return new_solution
-    
-
-# # # def two_opt(solution, model):
-# # #     # Implement the 2-opt algorithm for route improvement
-# # #     new_solution = solution.copy()
-# # #     for route in new_solution.routes:
-# # #         if len(route) <= 3:  # Not enough nodes to perform 2-opt (excluding depot)
-# # #             continue
-# # #         best_cost = float('inf')
-# # #         best_route = route.copy()
-# # #         for i in range(1, len(route) - 2):
-# # #             for j in range(i + 2, len(route) - 1):
-# # #                 # Perform 2-opt swap by reversing the segment between i and j
-# # #                 new_route = route[:i] + route[i:j][::-1] + route[j:]
-# # #                 new_route.update_all_metrics()  # Update metrics after swap
-# # #                 if new_route.total_cost < best_cost:
-# # #                     best_cost = new_route.total_cost
-# # #                     best_route = new_route.copy()
-# # #         route[:] = best_route[:]  # Update the original route with the best found
-# # #     new_solution.update_all_metrics()  # Update metrics after all routes are processed
-# # #     return new_solution
-
-
-# # def get_route_cost(route, model):
-# #     """Βοηθητική συνάρτηση για τον υπολογισμό του χρόνου μιας λίστας κόμβων."""
-# #     cost = 0
-# #     for i in range(len(route) - 1):
-# #         cost += model.cost_matrix[route[i]][route[i+1]]
-# #     return cost
-
-# # def two_opt(solution, model):
-# #     # Δημιουργούμε ένα βαθύ αντίγραφο για να μην επηρεάσουμε την αρχική λύση
-# #     import copy
-# #     new_solution = copy.deepcopy(solution)
-    
-# #     for r_idx, route in enumerate(new_solution.routes):
-# #         if len(route) <= 4:  # Χρειαζόμαστε τουλάχιστον 4 κόμβους (π.χ. [0, A, B, 0])
-# #             continue
-            
-# #         improved = True
-# #         while improved:
-# #             improved = False
-# #             best_cost = get_route_cost(route, model)
-            
-# #             # i: το σημείο πρώτης κοπής, j: το σημείο δεύτερης κοπής
-# #             for i in range(1, len(route) - 2):
-# #                 for j in range(i + 1, len(route) - 1):
-# #                     # Αντιστροφή του τμήματος μεταξύ i και j
-# #                     # Το [i:j+1][::-1] αντιστρέφει το κομμάτι της διαδρομής
-# #                     new_route = route[:i] + route[i:j+1][::-1] + route[j+1:]
-                    
-# #                     new_cost = get_route_cost(new_route, model)
-                    
-# #                     if new_cost < best_cost:
-# #                         route = new_route[:]
-# #                         best_cost = new_cost
-# #                         improved = True
-            
-# #             # Ενημέρωση της διαδρομής στο αντικείμενο solution
-# #             new_solution.routes[r_idx] = route
-
-# #     # Στο τέλος ενημερώνουμε όλα τα metrics του αντικειμένου Solution
-# #     new_solution.calculate_total_metrics() 
-# #     return new_solution
-
-# # def local_search(model, solution):
-
-# #     improved = True
-
-# #     current_solution = copy.deepcopy(solution)
-
-# #     while improved:
-
-# #         improved = False
-
-# #         # intra swap
-# #         new_solution = apply_intra_route_swap(current_solution, model)
-
-# #         if new_solution.total_cost < current_solution.total_cost:
-# #             current_solution = new_solution
-# #             improved = True
-
-# #         # inter swap
-# #         new_solution = apply_inter_route_swap(current_solution, model)
-
-# #         if new_solution.total_cost < current_solution.total_cost:
-# #             current_solution = new_solution
-# #             improved = True
-
-# #         # 2-opt
-# #         new_solution = two_opt(current_solution, model)
-
-# #         if new_solution.total_cost < current_solution.total_cost:
-# #             current_solution = new_solution
-# #             improved = True
-
-# #     return current_solution
-
-
-# import copy
-# from Solution import Route
-# import Helpers
-
-
-
-
-# def get_route_cost(nodes, model):
-#     """
-#     Υπολογίζει το συνολικό travel time μιας λίστας node ids.
-#     """
-#     cost = 0
-
-#     for i in range(len(nodes) - 1):
-#         cost += model.cost_matrix[nodes[i]][nodes[i + 1]]
-
-#     return cost
-
-
-# def calculate_route_load(nodes, model):
-
-#     load = 0
-
-#     for n in nodes:
-#         load += model.nodes[n].demand
-
-#     return load
-
-
-# def calculate_route_profit(nodes, model):
-
-#     profit = 0
-
-#     for n in nodes:
-#         profit += model.nodes[n].profit
-
-#     return profit
-
-
-# def update_route_metrics(route, model):
-
-#     route.load = calculate_route_load(route.nodes, model)
-#     route.time = get_route_cost(route.nodes, model)
-#     route.profit = calculate_route_profit(route.nodes, model)
-
-
-# def update_solution_metrics(solution, model):
-
-#     solution.total_profit = 0
-#     solution.total_time = 0
-#     solution.total_load = 0
-
-#     solution.visited = set()
-
-#     for route in solution.routes:
-
-#         update_route_metrics(route, model)
-
-#         solution.total_profit += route.profit
-#         solution.total_time += route.time
-#         solution.total_load += route.load
-
-#         for n in route.nodes:
-#             if n != 0:
-#                 solution.visited.add(n)
-
-
-# # =========================================================
-# # INTRA ROUTE SWAP
-# # =========================================================
-
-# def swap_intra_route(route, model):
-
-#     nodes = route.nodes[:]
-
-#     if len(nodes) <= 3:
-#         return route, False
-
-#     best_nodes = nodes[:]
-#     best_cost = get_route_cost(nodes, model)
-#     print("Current route cost:", best_cost)
-#     improved = False
-
-#     for i in range(1, len(nodes) - 1):
-
-#         for j in range(i + 1, len(nodes) - 1):
-
-#             temp_nodes = nodes[:]
-
-#             temp_nodes[i], temp_nodes[j] = (
-#                 temp_nodes[j],
-#                 temp_nodes[i]
-#             )
-
-#             new_cost = get_route_cost(temp_nodes, model)
-
-#             if new_cost < best_cost:
-
-#                 best_cost = new_cost
-#                 best_nodes = temp_nodes[:]
-
-#                 improved = True
-
-#     if improved:
-
-#         route.nodes = best_nodes
-#         update_route_metrics(route, model)
-
-#     return route, improved
-
-
-# def apply_intra_route_swap(solution, model):
-
-#     new_solution = copy.deepcopy(solution)
-
-#     for idx, route in enumerate(new_solution.routes):
-
-#         improved_route, _ = swap_intra_route(route, model)
-
-#         new_solution.routes[idx] = improved_route
-
-#     update_solution_metrics(new_solution, model)
-
-#     return new_solution
-
-
-# # =========================================================
-# # INTER ROUTE SWAP
-# # =========================================================
-
-# def apply_inter_route_swap(solution, model):
-
-#     new_solution = copy.deepcopy(solution)
-
-#     improved = False
-
-#     for r1 in range(len(new_solution.routes)):
-
-#         for r2 in range(r1 + 1, len(new_solution.routes)):
-
-#             route1 = new_solution.routes[r1]
-#             route2 = new_solution.routes[r2]
-
-#             nodes1 = route1.nodes
-#             nodes2 = route2.nodes
-
-#             for i in range(1, len(nodes1) - 1):
-
-#                 for j in range(1, len(nodes2) - 1):
-
-#                     temp1 = nodes1[:]
-#                     temp2 = nodes2[:]
-
-#                     temp1[i], temp2[j] = temp2[j], temp1[i]
-
-#                     load1 = calculate_route_load(temp1, model)
-#                     load2 = calculate_route_load(temp2, model)
-
-#                     if load1 > model.capacity:
-#                         continue
-
-#                     if load2 > model.capacity:
-#                         continue
-
-#                     cost1 = get_route_cost(temp1, model)
-#                     cost2 = get_route_cost(temp2, model)
-
-#                     if cost1 > model.t_max:
-#                         continue
-
-#                     if cost2 > model.t_max:
-#                         continue
-
-#                     old_total = (
-#                         route1.time +
-#                         route2.time
-#                     )
-
-#                     new_total = (
-#                         cost1 +
-#                         cost2
-#                     )
-
-#                     if new_total < old_total:
-
-#                         route1.nodes = temp1
-#                         route2.nodes = temp2
-
-#                         update_route_metrics(route1, model)
-#                         update_route_metrics(route2, model)
-
-#                         improved = True
-
-#                         break
-
-#                 if improved:
-#                     break
-
-#             if improved:
-#                 break
-
-#         if improved:
-#             break
-
-#     update_solution_metrics(new_solution, model)
-
-#     return new_solution
-
-
-# # =========================================================
-# # 2-OPT
-# # =========================================================
-
-# def two_opt(solution, model):
-
-#     new_solution = copy.deepcopy(solution)
-
-#     for r_idx, route in enumerate(new_solution.routes):
-
-#         nodes = route.nodes[:]
-
-#         if len(nodes) <= 4:
-#             continue
-
-#         improved = True
-
-#         while improved:
-
-#             improved = False
-
-#             best_cost = get_route_cost(nodes, model)
-
-#             for i in range(1, len(nodes) - 2):
-
-#                 for j in range(i + 1, len(nodes) - 1):
-
-#                     candidate = (
-#                         nodes[:i]
-#                         + nodes[i:j + 1][::-1]
-#                         + nodes[j + 1:]
-#                     )
-
-#                     candidate_cost = get_route_cost(candidate, model)
-
-#                     if candidate_cost < best_cost:
-
-#                         nodes = candidate[:]
-
-#                         best_cost = candidate_cost
-
-#                         improved = True
-
-#         route.nodes = nodes
-
-#         update_route_metrics(route, model)
-
-#     update_solution_metrics(new_solution, model)
-
-#     return new_solution
-
-
-# # =========================================================
-# # LOCAL SEARCH
-# # =========================================================
-
-# def local_search(model, solution):
-
-#     current_solution = copy.deepcopy(solution)
-
-#     improved = True
-
-#     while improved:
-        
-#         improved = False
-
-#         old_cost = Helpers.calculate_total_cost(model, current_solution.routes)
-#         print (old_cost)
-#         old_profit = current_solution.total_profit 
-#         old_time = current_solution.total_time
-
-#         # ---------------------------------
-#         # INTRA ROUTE SWAP
-#         # ---------------------------------
-
-#         candidate = apply_intra_route_swap(
-#             current_solution,
-#             model
-#         )
-
-#         if (
-#             Helpers.calculate_total_cost(model, candidate.routes) < old_cost
-#             or
-#             (
-#                 Helpers.calculate_total_cost(model, candidate.routes) == old_cost
-#                 and candidate.total_time < old_time
-#             )
-#         ):
-
-#             current_solution = candidate
-
-#             improved = True
-
-#             continue
-
-#         # ---------------------------------
-#         # INTER ROUTE SWAP
-#         # ---------------------------------
-
-#         candidate = apply_inter_route_swap(
-#             current_solution,
-#             model
-#         )
-
-#         if (
-#             Helpers.calculate_total_cost(model, candidate.routes) < old_cost
-#             or
-#             (
-#                 Helpers.calculate_total_cost(model, candidate.routes) == old_cost
-#                 and candidate.total_time < old_time
-#             )
-#         ):
-
-#             current_solution = candidate
-
-#             improved = True
-
-#             continue
-
-#         # ---------------------------------
-#         # 2 OPT
-#         # ---------------------------------
-
-#         candidate = two_opt(
-#             current_solution,
-#             model
-#         )
-
-#         if (
-#             Helpers.calculate_total_cost(model, candidate.routes) < old_cost
-#             or
-#             (
-#                 Helpers.calculate_total_cost(model, candidate.routes) == old_cost
-#                 and candidate.total_time < old_time
-#             )
-#         ):
-            
-
-#             current_solution = candidate
-
-#             improved = True
-
-#     return current_solution
-
-
-
-# LocalSearch.py
-# LocalSearch.py
 import copy
+
+def _or_opt_relocate(model, sol, enforce_mandatory=False):
+    """
+    Or-opt: Μεταφέρει έναν κόμβο από route A σε route B.
+
+    Γιατί βοηθάει στο TOP (Dang et al. 2013):
+    Ένας κόμβος που "χάνει" χρόνο στο route A ίσως ταιριάζει καλύτερα
+    στο route B. Ο ελεύθερος χρόνος στο A επιτρέπει εισαγωγή νέου
+    high-profit κόμβου. Έτσι ξεφεύγουμε από local optima που το
+    node_exchange δεν μπορεί να λύσει.
+    """
+    improved = False
+
+    for r1_idx in range(len(sol.routes)):
+        route1 = sol.routes[r1_idx]
+
+        for pos in range(1, len(route1.nodes) - 1):
+            node_v = route1.nodes[pos]
+
+            # Ποτέ δε μετακινούμε mandatory κόμβο
+            if enforce_mandatory and model.nodes[node_v].isMandatory:
+                continue
+
+            prev1 = route1.nodes[pos - 1]
+            next1 = route1.nodes[pos + 1]
+
+            # Χρόνος που ελευθερώνεται από το route1 αφαιρώντας node_v
+            time_freed_r1 = (
+                model.cost_matrix[prev1][node_v]
+                + model.cost_matrix[node_v][next1]
+                - model.cost_matrix[prev1][next1]
+            )
+
+            # Δοκιμή εισαγωγής node_v σε κάθε άλλο route
+            for r2_idx in range(len(sol.routes)):
+                if r2_idx == r1_idx:
+                    continue
+
+                route2 = sol.routes[r2_idx]
+
+                # Εύρεση καλύτερης θέσης στο route2 για τον node_v
+                best_pos2  = None
+                best_delta2 = float("inf")
+
+                for pos2 in range(1, len(route2.nodes)):
+                    a2 = route2.nodes[pos2 - 1]
+                    b2 = route2.nodes[pos2]
+
+                    delta2 = (
+                        model.cost_matrix[a2][node_v]
+                        + model.cost_matrix[node_v][b2]
+                        - model.cost_matrix[a2][b2]
+                    )
+
+                    if route2.load + model.nodes[node_v].demand > model.capacity:
+                        continue
+                    if route2.time + delta2 > model.t_max:
+                        continue
+
+                    if delta2 < best_delta2:
+                        best_delta2 = delta2
+                        best_pos2   = pos2
+
+                if best_pos2 is None:
+                    continue  # Δεν χωράει στο route2
+
+                # node_v χωράει στο route2 — τώρα ψάχνουμε αν ο
+                # ελεύθερος χρόνος στο route1 επιτρέπει καλύτερο κόμβο
+                unvisited = set(range(1, model.num_nodes)) - sol.visited
+
+                best_new_node  = None
+                best_new_pos1  = None
+                best_new_delta1 = float("inf")
+                best_new_profit = model.nodes[node_v].profit  # baseline: τουλάχιστον ίδιο profit
+
+                # Υπολογισμός metrics του route1 ΧΩΡΙΣ τον node_v
+                new_route1_load = route1.load - model.nodes[node_v].demand
+                new_route1_time = route1.time - time_freed_r1
+
+                for new_node in unvisited:
+                    if model.nodes[new_node].profit <= best_new_profit:
+                        continue  # Θέλουμε αυστηρά καλύτερο profit
+
+                    for ins_pos in range(1, len(route1.nodes) - 1):
+                        # Παράλειψη θέσης pos (θα αφαιρεθεί)
+                        if ins_pos == pos:
+                            continue
+
+                        # Κόμβοι γύρω από τη θέση εισαγωγής (στο route1 ΧΩΡΙΣ node_v)
+                        temp_nodes = route1.nodes[:pos] + route1.nodes[pos+1:]
+                        if ins_pos >= pos:
+                            ins_pos_adj = ins_pos - 1
+                        else:
+                            ins_pos_adj = ins_pos
+
+                        if ins_pos_adj < 1 or ins_pos_adj >= len(temp_nodes):
+                            continue
+
+                        a1 = temp_nodes[ins_pos_adj - 1]
+                        b1 = temp_nodes[ins_pos_adj]
+
+                        delta1 = (
+                            model.cost_matrix[a1][new_node]
+                            + model.cost_matrix[new_node][b1]
+                            - model.cost_matrix[a1][b1]
+                        )
+
+                        if new_route1_load + model.nodes[new_node].demand > model.capacity:
+                            continue
+                        if new_route1_time + delta1 > model.t_max:
+                            continue
+
+                        if model.nodes[new_node].profit > best_new_profit:
+                            best_new_profit  = model.nodes[new_node].profit
+                            best_new_node    = new_node
+                            best_new_pos1    = ins_pos_adj
+                            best_new_delta1  = delta1
+
+                # Αν βρήκαμε νέο κόμβο με καλύτερο profit: εκτέλεση κίνησης
+                if best_new_node is not None:
+                    # 1. Αφαίρεση node_v από route1
+                    route1.nodes.pop(pos)
+                    route1.load   -= model.nodes[node_v].demand
+                    route1.time   -= time_freed_r1
+                    route1.profit -= model.nodes[node_v].profit
+
+                    # 2. Εισαγωγή new_node στο route1
+                    route1.nodes.insert(best_new_pos1, best_new_node)
+                    route1.load   += model.nodes[best_new_node].demand
+                    route1.time   += best_new_delta1
+                    route1.profit += model.nodes[best_new_node].profit
+
+                    # 3. Εισαγωγή node_v στο route2
+                    route2.nodes.insert(best_pos2, node_v)
+                    route2.load   += model.nodes[node_v].demand
+                    route2.time   += best_delta2
+                    route2.profit += model.nodes[node_v].profit
+
+                    # 4. Ενημέρωση visited
+                    sol.visited.discard(node_v)   # βγαίνει από route1
+                    sol.visited.add(node_v)        # μπαίνει στο route2
+                    sol.visited.add(best_new_node)
+
+                    _update_metrics(sol)
+                    improved = True
+                    break  # Restart από την αρχή
+
+            if improved:
+                break
+        if improved:
+            break
+
+    return improved
+
 
 
 def _update_metrics(sol):
@@ -574,44 +161,49 @@ def _update_metrics(sol):
     sol.total_time   = sum(r.time   for r in sol.routes)
     sol.total_load   = sum(r.load   for r in sol.routes)
 
-
-def local_search(model, solution, enforce_mandatory=False):
+def local_search(model, solution, enforce_mandatory=False,
+                 max_passes=999, apply_two_opt=True):
     """
-    Profit-focused local search για το Team Orienteering Problem.
-
-    Αν enforce_mandatory=True:
-      - Δεν αφαιρούνται ποτέ mandatory κόμβοι (node_exchange)
-      - Mandatory κόμβοι εισάγονται πρώτοι (insert_unvisited)
-      - Αν δεν χωράνε, αφαιρούνται optional κόμβοι για να κάνουν χώρο (force_insert_mandatory)
-
-    Βήματα (επαναλαμβάνονται έως ότου δεν υπάρχει βελτίωση):
-      1. force_insert_mandatory: εξασφαλίζει ότι όλοι οι mandatory κόμβοι είναι στη λύση
-      2. node_exchange:          αντικατάσταση optional κόμβου με μη-επισκεφθέντα υψηλότερου κέρδους
-      3. insert_unvisited:       εισαγωγή νέων κόμβων σε κενό χώρο
+    max_passes=1
+    max_passes=999
+    apply_two_opt=False → παράλειψη 2-opt (λιγότερο κρίσιμο για TOP)
     """
     sol = copy.deepcopy(solution)
 
-    improved = True
-    while improved:
+    for _ in range(max_passes):
         improved = False
 
-        # Βήμα 1: Εξασφάλιση mandatory κόμβων (μόνο αν enforce_mandatory=True)
         if enforce_mandatory:
             if _force_insert_mandatory(model, sol):
                 improved = True
 
-        # Βήμα 2: Αντικατάσταση κόμβων (ποτέ δεν αγγίζουμε mandatory)
         if _node_exchange(model, sol, enforce_mandatory):
             improved = True
 
-        # Βήμα 3: Εισαγωγή νέων κόμβων (mandatory πρώτα αν enforce_mandatory)
+        if _or_opt_relocate(model, sol, enforce_mandatory):
+            improved = True
+
+        sol, success_2 = _multi_node_exchange(model, sol, num_nodes_to_remove=2, enforce_mandatory=enforce_mandatory)
+        if success_2:
+            improved = True
+
+        sol, success_3 = _multi_node_exchange(model, sol, num_nodes_to_remove=3, enforce_mandatory=enforce_mandatory)
+        if success_3:
+            improved = True
+        
+
         if _insert_unvisited(model, sol, enforce_mandatory):
             improved = True
 
-    # Τελικό 2-opt: βελτίωση δομής routes χωρίς αλλαγή στους επισκεπτόμενους κόμβους
-    _two_opt_all_routes(model, sol)
-    _update_metrics(sol)
+        if not improved:
+            break
 
+    if apply_two_opt:
+        _two_opt_all_routes(model, sol)
+    
+    
+
+    _update_metrics(sol)
     return sol
 
 
@@ -658,7 +250,7 @@ def _node_exchange(model, sol, enforce_mandatory=False):
                 if model.nodes[node_j].profit <= model.nodes[node_i].profit:
                     break
 
-                # Επιπλέον χρόνος από εισαγωγή του node_j στη θέση pos
+                # Πρόσθετος χρόνος από εισαγωγή του node_j στη θέση pos
                 time_added = (
                     model.cost_matrix[prev_node][node_j]
                     + model.cost_matrix[node_j][next_node]
@@ -965,3 +557,239 @@ def _two_opt_all_routes(model, sol):
     for route in sol.routes:
         if len(route.nodes) > 3:
             _two_opt_route(model, route)
+
+
+def _multi_node_exchange(model, solution, num_nodes_to_remove=2, enforce_mandatory=False):
+    """
+    Αφαιρεί num_nodes_to_remove συνεχόμενους κόμβους από μια διαδρομή
+    και δοκιμάζει να εισάγει έναν unvisited κόμβο που προσφέρει μεγαλύτερο profit
+    εκμεταλλευόμενος τον μεγάλο χώρο/χρόνο που ελευθερώθηκε.
+    
+    Αν enforce_mandatory=True, διασφαλίζει ότι κανένας mandatory κόμβος 
+    δε θα αφαιρεθεί από τη λύση.
+    """
+    sol = copy.deepcopy(solution)
+    unvisited = set(range(1, model.num_nodes)) - sol.visited
+
+    for route in sol.routes:
+        # Χρειαζόμαστε αρκετούς κόμβους στη διαδρομή (μαζί με τα depot)
+        if len(route.nodes) < num_nodes_to_remove + 3:
+            continue
+
+        # i: η θέση έναρξης της αφαίρεσης
+        for i in range(1, len(route.nodes) - num_nodes_to_remove):
+            # Προσδιορισμός των κόμβων προς αφαίρεση
+            removed_indices = list(range(i, i + num_nodes_to_remove))
+            nodes_to_remove = [route.nodes[idx] for idx in removed_indices]
+            
+            # 🌟 ΚΑΝΟΝΑΣ MANDATORY: Αν ζητάμε έγκυρη mandatory λύση,
+            # ελέγχουμε αν ανάμεσα στους κόμβους προς αφαίρεση υπάρχει έστω και ένας υποχρεωτικός.
+            if enforce_mandatory:
+                contains_mandatory = any(model.nodes[n].isMandatory for n in nodes_to_remove)
+                if contains_mandatory:
+                    continue  # Προσπέραση αυτού του συνδυασμού, δεν επιτρέπεται η αφαίρεση
+
+            A = route.nodes[i - 1]
+            B = route.nodes[i + num_nodes_to_remove]
+
+            # Υπολογισμός των metrics που απελευθερώνονται
+            saved_load = sum(model.nodes[n].demand for n in nodes_to_remove)
+            saved_profit = sum(model.nodes[n].profit for n in nodes_to_remove)
+            
+            # Χρόνος της παλιάς υπο-διαδρομής
+            old_sub_time = model.cost_matrix[A][nodes_to_remove[0]]
+            for k in range(len(nodes_to_remove) - 1):
+                old_sub_time += model.cost_matrix[nodes_to_remove[k]][nodes_to_remove[k+1]]
+            old_sub_time += model.cost_matrix[nodes_to_remove[-1]][B]
+
+            # Δοκιμή αντικατάστασης με ΕΝΑΝ καλό unvisited κόμβο j
+            for j in unvisited:
+                if model.nodes[j].profit <= saved_profit:
+                    continue  # Θέλουμε αυστηρά μεγαλύτερο profit
+
+                new_load = route.load - saved_load + model.nodes[j].demand
+                if new_load > model.capacity:
+                    continue
+
+                added_time = model.cost_matrix[A][j] + model.cost_matrix[j][B]
+                new_time = route.time - old_sub_time + added_time
+                if new_time > model.t_max:
+                    continue
+
+                # Αν φτάσαμε εδώ, το swap είναι feasible και κερδοφόρο!
+                # 1. Αφαίρεση των παλιών κόμβων (pop από το τέλος προς την αρχή για να μην χαλάσουν τα indices)
+                for idx in reversed(removed_indices):
+                    route.nodes.pop(idx)
+                
+                # 2. Εισαγωγή του νέου κόμβου
+                route.nodes.insert(i, j)
+                
+                # 3. Ενημέρωση metrics διαδρομής
+                route.load = new_load
+                route.time = new_time
+                route.profit = route.profit - saved_profit + model.nodes[j].profit
+
+                # 4. Ενημέρωση visited sets
+                for n in nodes_to_remove:
+                    sol.visited.remove(n)
+                sol.visited.add(j)
+                
+                # Ενημέρωση γενικών metrics λύσης και επιστροφή
+                sol.total_profit = sum(r.profit for r in sol.routes)
+                sol.total_time = sum(r.time for r in sol.routes)
+                sol.total_load = sum(r.load for r in sol.routes)
+                return sol, True
+
+    return sol, False
+
+
+def _net_profit_global_exchange(model, sol, enforce_mandatory=False,
+                                profit_threshold=None):
+    """
+    Multi-drop exchange: αφαιρεί συνδυαστικά optional κόμβους χαμηλού
+    profit/demand ratio για να κάνει χώρο σε unvisited κόμβο υψηλού profit.
+
+    Λειτουργεί και για capacity-full ΚΑΙ time-full routes.
+
+    profit_threshold=None → adaptive: top 20% unvisited κατά profit
+    """
+    all_nodes = set(range(1, model.num_nodes))
+    unvisited  = all_nodes - sol.visited
+
+    if not unvisited:
+        return sol, False
+
+    # ── Threshold: adaptive αν δεν δοθεί ────────────────────────────────────
+    if profit_threshold is None:
+        profits = sorted([model.nodes[n].profit for n in unvisited], reverse=True)
+        # Top 20% των unvisited κατά profit
+        cutoff_idx       = max(0, int(len(profits) * 0.2) - 1)
+        profit_threshold = profits[cutoff_idx] if profits else 0
+
+    # ── Βήμα 1: Unvisited στόχοι με profit >= threshold ─────────────────────
+    targets = sorted(
+        [n for n in unvisited if model.nodes[n].profit >= profit_threshold],
+        key=lambda n: model.nodes[n].profit,
+        reverse=True
+    )
+
+    if not targets:
+        return sol, False
+
+    for target_node in targets:
+        target_profit = model.nodes[target_node].profit
+        target_demand = model.nodes[target_node].demand
+        target_ratio  = target_profit / max(target_demand, 1)
+
+        # ── Βήμα 2: Σάρωση routes ───────────────────────────────────────────
+        for route in sol.routes:
+
+            # Συλλογή optional κόμβων που έχουν ratio <= target (υποψήφιοι αφαίρεσης)
+            removable = []
+            for pos in range(1, len(route.nodes) - 1):
+                node = route.nodes[pos]
+
+                if enforce_mandatory and model.nodes[node].isMandatory:
+                    continue  # Ποτέ δεν αγγίζουμε mandatory
+
+                node_ratio = model.nodes[node].profit / max(model.nodes[node].demand, 1)
+                if node_ratio <= target_ratio:
+                    removable.append((node_ratio, pos, node))
+
+            if not removable:
+                continue
+
+            # Χειρότερο ratio πρώτα
+            removable.sort(key=lambda x: x[0])
+
+            # ── Βήμα 3: Σταδιακή εκκένωση μέχρι να χωράει ──────────────────
+            freed_demand = 0
+            freed_profit = 0
+            nodes_to_remove = []
+
+            for _, pos, node in removable:
+                nodes_to_remove.append((pos, node))
+                freed_demand += model.nodes[node].demand
+                freed_profit += model.nodes[node].profit
+
+                # Έλεγχος capacity: χωράει τώρα;
+                new_load = route.load - freed_demand + target_demand
+                if new_load <= model.capacity:
+                    break
+
+            # Capacity check
+            new_load = route.load - freed_demand + target_demand
+            if new_load > model.capacity:
+                continue
+
+            # ── Βήμα 4: Net Profit check ─────────────────────────────────────
+            net_gain = target_profit - freed_profit
+            if net_gain <= 0:
+                continue  # Δεν αξίζει
+
+            # ── Βήμα 5: Κατασκευή route χωρίς αφαιρεθέντες ─────────────────
+            remove_positions = {pos for pos, _ in nodes_to_remove}
+            new_nodes = [
+                n for idx, n in enumerate(route.nodes)
+                if idx not in remove_positions
+            ]
+
+            # Χρόνος route ΧΩΡΙΣ αφαιρεθέντες (base για time check)
+            base_time = sum(
+                model.cost_matrix[new_nodes[i]][new_nodes[i + 1]]
+                for i in range(len(new_nodes) - 1)
+            )
+
+            # ── Βήμα 6: Εύρεση καλύτερης θέσης εισαγωγής ───────────────────
+            best_ins_pos = None
+            best_delta   = float("inf")
+
+            for ins_pos in range(1, len(new_nodes)):
+                a = new_nodes[ins_pos - 1]
+                b = new_nodes[ins_pos]
+
+                delta = (
+                    model.cost_matrix[a][target_node]
+                    + model.cost_matrix[target_node][b]
+                    - model.cost_matrix[a][b]
+                )
+
+                # Time check με το νέο base_time (μετά αφαιρέσεις)
+                if base_time + delta <= model.t_max and delta < best_delta:
+                    best_delta   = delta
+                    best_ins_pos = ins_pos
+
+            if best_ins_pos is None:
+                continue  # Δεν χωράει χρονικά
+
+            # ── Βήμα 7: Εφαρμογή ────────────────────────────────────────────
+            final_nodes = (
+                new_nodes[:best_ins_pos]
+                + [target_node]
+                + new_nodes[best_ins_pos:]
+            )
+            route.nodes = final_nodes
+
+            # υπολογισμός metrics route
+            route.load   = sum(model.nodes[n].demand for n in final_nodes if n != 0)
+            route.time   = sum(
+                model.cost_matrix[final_nodes[i]][final_nodes[i + 1]]
+                for i in range(len(final_nodes) - 1)
+            )
+            route.profit = sum(model.nodes[n].profit for n in final_nodes if n != 0)
+
+            # Ενημέρωση visited
+            for _, removed_node in nodes_to_remove:
+                sol.visited.discard(removed_node)
+            sol.visited.add(target_node)
+
+            _update_metrics(sol)
+            return sol, True
+
+    return sol, False
+
+
+
+
+
+

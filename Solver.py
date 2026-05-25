@@ -1,10 +1,12 @@
 import random
+
+
 import Helpers
 import copy
 from ALNS import ALNS
-from ALNS_mandatory import ALNS as ALNS_mandatory
+from ILS import ILS
 from PathRelinking import EliteSet, path_relinking
-from ACO import ACO
+
 from LocalSearch import local_search
 from Solution import Route, Solution
 
@@ -30,24 +32,6 @@ class Solver:
         route.time += added_time
         route.profit += self.model.nodes[node].profit
 
-
-    def remove_node(self, route, position):
-        node = route.nodes[position]
-        a = route.nodes[position - 1]
-        b = route.nodes[position + 1]
-
-        removed_time = (
-            self.model.cost_matrix[a][node]
-            + self.model.cost_matrix[node][b]
-            - self.model.cost_matrix[a][b]
-        )
-
-        route.nodes.pop(position)
-        route.load -= self.model.nodes[node].demand
-        route.time -= removed_time
-        route.profit -= self.model.nodes[node].profit
-
-        return node
 
     #Finds the best feasible insertion in a route. 
     def find_best_insertion_for_route(self,route, visited):
@@ -90,7 +74,7 @@ class Solver:
                 if denominator <= 0:
                     continue
                     
-                score = self.model.nodes[j].profit / (denominator)
+                score = self.model.nodes[j].profit / denominator
 
                 if self.model.nodes[j].demand == 1:
                     score += 20
@@ -175,116 +159,55 @@ class Solver:
     
 
     def multi_restart_initial_solution(
-        self,
-        restarts=100,
-        top_k=3
-    ):
+            self,
+            restarts=100,
+            top_k=3,
+            enforce_mandatory=False
+        ):
+            """
+            Παράγει μια ισχυρή αρχική λύση μέσω πολλαπλών restarts.
+            Κρατάει τις κορυφαίες λύσεις στο Elite Set και εκτελεί Path Relinking 
+            ανάμεσα στην τρέχουσα λύση και τις ήδη υπάρχουσες elite λύσεις.
+            """
+            best_solution = None
+            best_profit = -1
+            best_time = float("inf")
 
-        best_solution = None
+            print("\nIteration | Current Profit | Best Profit")
+            print("-" * 40)
 
-        best_profit = -1
-        best_time = float("inf")
+            for iteration in range(1, restarts + 1):
+                # Κατασκευή αρχικής τυχαίας λύσης
+                solution = self.construct_initial_solution(top_k=top_k)
+                
+                # local search 
+                solution = local_search(self.model, solution, enforce_mandatory=enforce_mandatory)
 
-        print("\niteration current_solution best_solution")
+                current_profit = solution.total_profit
+                current_time = solution.total_time
 
-        for iteration in range(1, restarts + 1):
-
-            solution = self.construct_initial_solution(
-                top_k=top_k
-            )
-
-            current_profit = solution.total_profit
-            current_time = solution.total_time
-
-            if (
-                current_profit > best_profit
-                or (
-                    current_profit == best_profit
-                    and current_time < best_time
-                )
-            ):
-
-                best_solution = solution
-
-                best_profit = current_profit
-                best_time = current_time
-
-            print(
-                iteration,
-                current_profit,
-                best_profit,
-                flush=True
-            )
-
-        return best_solution
-
-
-
-    def solve_greedy(self, enforce_mandatory=True):
-
-        routes = [Route() for _ in range(self.model.vehicles)]
-        visited = set()
-
-        utilization = Helpers.calculate_utilization(
-            self.model.nodes,
-            enforce_mandatory
-        )
-
-        for node_id in utilization:
-
-            node = self.model.nodes[node_id]
-
-            best_route = None
-            best_pos = None
-            best_cost = float("inf")
-
-            for route in routes:
-
-                for i in range(1, len(route.nodes)):
-
-                    a = route.nodes[i - 1]
-                    b = route.nodes[i]
-
-                    delta_cost = (
-                        self.model.cost_matrix[a][node_id]
-                        + self.model.cost_matrix[node_id][b]
-                        - self.model.cost_matrix[a][b]
+                # Έλεγχος αν βρήκαμε νέα καθολικά καλύτερη λύση
+                if (
+                    current_profit > best_profit
+                    or (
+                        current_profit == best_profit
+                        and current_time < best_time
                     )
+                ):
+                    best_solution = copy.deepcopy(solution)
+                    best_profit = current_profit
+                    best_time = current_time
 
-                    new_load = route.load + node.demand
-                    new_time = route.time + delta_cost
+                
 
-                    if new_load > self.model.capacity:
-                        continue
-                    if new_time > self.model.t_max:
-                        continue
-
-                    if delta_cost < best_cost:
-                        best_cost = delta_cost
-                        best_route = route
-                        best_pos = i
-
-            if best_route is not None:
-                best_route.nodes.insert(best_pos, node_id)
-                best_route.load += node.demand
-                best_route.time += best_cost
-                best_route.profit += node.profit
-                visited.add(node_id)
-
-        sol = Solution(routes=routes, visited=visited)
-
-        sol.total_profit = sum(r.profit for r in routes)
-        sol.total_load = sum(r.load for r in routes)
-        sol.total_time = sum(r.time for r in routes)
-
-        return sol
+            return best_solution
 
 
 
     def solve_mandatory_clustered(self):
         from Helpers import cluster_mandatory_nodes
         
-        #Ομαδοποίηση mandatory
+        # Ομαδοποίηση mandatory
         clusters = cluster_mandatory_nodes(self.model, self.model.vehicles)
         
         routes = [Route() for _ in range(self.model.vehicles)]
@@ -293,7 +216,6 @@ class Solver:
         # Κάθε όχημα παίρνει τους mandatory της ομάδας του
         for k, route in enumerate(routes):
             for node_id in clusters[k]:
-                node, position, added_time, score = self.find_best_insertion_for_route(route, visited)
                 # καλύτερη θέση για τον συγκεκριμένο mandatory
                 best_pos = 1
                 best_time = float('inf')
@@ -310,7 +232,7 @@ class Solver:
                 self.insert_node(route, node_id, best_pos, best_time)
                 visited.add(node_id)
         
-        # εισάγει τα μην mandatory με greedy τρόπο
+        # εισάγει τα μη mandatory με greedy τρόπο
         while True:
             best_route, node, position, added_time, score = self.find_best_global_insertion(routes, visited)
             if node is None:
@@ -328,93 +250,87 @@ class Solver:
 
 
     def solve_mandatory(self):
-        # Βήμα 1: Αρχική έγκυρη λύση (με όλους τους mandatory)
         solution = None
         best_profit = -1
-        for _ in range(10):
+
+        elite = EliteSet(self.model, max_size=5, enforce_mandatory=True)
+        
+        for i in range(10):
             candidate = self.solve_mandatory_clustered()
+            
+
+            
+            elite.try_add(candidate)
+            for elite_sol in elite.solutions:
+                if elite_sol.total_profit == candidate.total_profit:
+                    continue
+                
+                if candidate.total_profit > elite_sol.total_profit:
+                    start, end = copy.deepcopy(candidate), copy.deepcopy(elite_sol)
+                else:
+                    start, end = copy.deepcopy(elite_sol), copy.deepcopy(candidate)
+                # Εκτέλεση Path Relinking
+                pr_sol = path_relinking(self.model, start, end, enforce_mandatory=True)
+                
+
+                pr_sol = local_search(self.model, pr_sol, enforce_mandatory=True)
+                
+                if pr_sol.total_profit > best_profit:
+                    solution = pr_sol
+                    best_profit = pr_sol.total_profit
+                    
             if candidate.total_profit > best_profit:
                 best_profit = candidate.total_profit
                 solution = candidate
 
-        print(f"Before Local Search: {solution.total_profit}")
+       
 
-        # Βήμα 2: Local search (mandatory-aware)
+        #  Local search 
         solution = local_search(self.model, solution, enforce_mandatory=True)
         print(f"After Local Search: {solution.total_profit}")
 
-        # Βήμα 3: ALNS με mandatory-aware operators
-        elite = EliteSet(self.model, max_size=5, enforce_mandatory=True)
-        elite.try_add(solution)
+        #  ILS        
 
-        alns = ALNS_mandatory(self.model, self.seed)
-        alns_sol = alns.run(solution, iterations=500)
-        print(f"After ALNS: {alns_sol.total_profit}")
-        elite.try_add(alns_sol)
+        ils = ILS(self.model, seed=self.seed, enforce_mandatory=True)
+        ils_sol = ils.run(solution, iterations=500)
 
-        # Βήμα 4: Path Relinking μεταξύ ALNS αποτελέσματος και elite λύσεων
-        best_sol = copy.deepcopy(alns_sol)
-        for target in elite.solutions:
-            pr_sol = path_relinking(
-                self.model, alns_sol, target, enforce_mandatory=True
-            )
-            if pr_sol.total_profit > best_sol.total_profit:
-                best_sol = pr_sol
-                print(f"Path Relinking improvement: {best_sol.total_profit}")
-        # Βήμα 5: Τελικό local search
-        best_sol = local_search(self.model, best_sol, enforce_mandatory=True)
-        print(f"Final solution: {best_sol.total_profit}")
-
+        best_sol = local_search(self.model, ils_sol, enforce_mandatory=True)
+        
         return best_sol
 
 
-    # def solve_no_mandatory(self):
-    #     solution = self.multi_restart_initial_solution(restarts=10, top_k=5)
-        
-    #     from Operators import node_exchange
-    #     previous_profit = -1
-    #     while solution.total_profit > previous_profit:
-    #         previous_profit = solution.total_profit
-    #         solution = node_exchange(solution, self.model)
-        
-    #     return solution
-    
-
     def solve_no_mandatory(self):
-        # Βήμα 1: Αρχική λύση με multi-restart greedy
-        initial_sol = self.multi_restart_initial_solution(restarts=10, top_k=5)
+        
+
+
+        initial_sol = self.multi_restart_initial_solution( restarts=10, top_k=5)
+
         print(f"Αρχική λύση: {initial_sol.total_profit}")
 
-        # Βήμα 2: Local Search για γρήγορη βελτίωση
+        # Local Search για γρήγορη βελτίωση
         solution = local_search(self.model, initial_sol)
         print(f"Μετά Local Search: {solution.total_profit}")
 
-        # Βήμα 3: ALNS με elite set για Path Relinking
-        from ALNS import ALNS
-        elite = EliteSet(self.model, max_size=5, enforce_mandatory=False)
-        elite.try_add(solution)
-
+        
+    
         alns = ALNS(self.model, self.seed)
         alns_sol = alns.run(solution, iterations=500)
-        elite.try_add(alns_sol)
+        print(f"After ALNS: {alns_sol.total_profit}")
+        
         print(f"Μετά ALNS: {alns_sol.total_profit}")
 
-        # Βήμα 4: Path Relinking μεταξύ ALNS αποτελέσματος και elite λύσεων
+       
         best_sol = copy.deepcopy(alns_sol)
-        for target in elite.solutions:
-            pr_sol = path_relinking(self.model, alns_sol, target)
-            if pr_sol.total_profit > best_sol.total_profit:
-                best_sol = pr_sol
-                print(f"Path Relinking βελτίωση: {best_sol.total_profit}")
-
-        # Βήμα 5: Τελικό Local Search
+        
         best_sol = local_search(self.model, best_sol)
-        print(f"Τελική λύση: {best_sol.total_profit}")
 
         return best_sol
+
 
     def solve(self, enforce_mandatory=True):
         if enforce_mandatory:
             return self.solve_mandatory()
         else:
             return self.solve_no_mandatory()
+        
+    

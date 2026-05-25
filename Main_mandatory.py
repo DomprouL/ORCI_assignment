@@ -7,6 +7,8 @@ from Solver import Solver
 from Helpers import write_solution_to_file
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+
+
 def main(instance_file, solution_file, enforce_mandatory=True):
     print(f"Loading Instance: '{instance_file}'...")
     model = load_model(instance_file)
@@ -18,8 +20,9 @@ def main(instance_file, solution_file, enforce_mandatory=True):
     print(f"Time limit per route (T_max): {model.t_max}")
     print(f"Enforce mandatory: {enforce_mandatory}")
 
-    solver = Solver(model, seed=23)
+    solver = Solver(model, seed=4)
     final_solution = solver.solve_mandatory()
+
 
     #write solution to file
     write_solution_to_file(final_solution, solution_file)
