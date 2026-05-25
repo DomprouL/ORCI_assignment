@@ -147,8 +147,7 @@ def find_best_insertion_for_route(model, route, visited, avg_demand, avg_distanc
             time_norm = added_time / avg_distance
 
             alpha = 0.8
-
-            denominator = alpha * demand_norm + (1 - alpha)* time_norm
+            denominator = alpha * demand_norm +  ( 1 - alpha) * time_norm
 
             if denominator <= 0:
                 continue

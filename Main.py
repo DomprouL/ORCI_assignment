@@ -1,15 +1,35 @@
 import io
 import sys
+
 import Helpers
 from Parser import load_model
 from SolutionPlotter import plot_ctop_solution
-from Time_Operators import time_vnd, total_solution_time, total_solution_profit
 from SolutionValidator import validate_solution
+from Capacity_Repair import (
+    warm_start_remove_insert_loop,
+    capacity_destroy_repair_search
+)
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-import random
-from Destroy_Operators import shaw_removal
+
+
+def print_route_details(model, routes):
+    print("\nRoute Details:")
+
+    for i, route in enumerate(routes):
+        if len(route.nodes) <= 2:
+            continue
+
+        print(
+            f"Route {i} -> "
+            f"Load = {route.load}/{model.capacity}, "
+            f"Time = {route.time:.2f}/{model.t_max}, "
+            f"Profit = {route.profit}"
+        )
+
 
 def main(instance_file):
+   
     model = load_model(instance_file)
 
     avg_demand = Helpers.compute_average_demand(model)
@@ -20,6 +40,9 @@ def main(instance_file):
         k=100
     )
 
+    # ------------------------------------------------------------
+    # 4. Construct initial solution using multi-start
+    # ------------------------------------------------------------
     routes, visited, initial_profit, initial_time, initial_used_routes = (
         Helpers.multi_restart_initial_solution(
             model,
@@ -32,82 +55,109 @@ def main(instance_file):
         )
     )
 
-    iteration = 0
+    print("\nInitial solution created.")
+    print(f"Initial Profit = {initial_profit}")
+    print(f"Initial Time = {initial_time:.2f}")
+    print(f"Initial Used Routes = {initial_used_routes}")
 
-    while True:
-        iteration += 1
+    print_route_details(model, routes)
 
-        old_profit = total_solution_profit(routes)
-        old_time = total_solution_time(routes)
+    # ------------------------------------------------------------
+    # 5. Warm-start improvement
+    #
+    # This keeps your existing logic:
+    # - remove the worst profit/demand node once
+    # - run VND
+    # - insert feasible nodes
+    # - repeat until no more feasible insertion exists
+    # ------------------------------------------------------------
+    warm_start_remove_insert_loop(
+        model,
+        routes,
+        visited,
+        avg_demand,
+        avg_distance,
+        neighbors_set_array,
+        top_k=1,
+        protect_mandatory=False
+    )
 
-        # Step 1: compress current routes using time operators
-        time_improved = time_vnd(model, routes, neighbors_set_array)
+    warm_profit, warm_time, warm_used_routes = Helpers.compute_solution_totals(routes)
 
-        after_vnd_profit = total_solution_profit(routes)
-        after_vnd_time = total_solution_time(routes)
+    print("\nAfter warm-start remove/insert loop:")
+    print(f"Profit = {warm_profit}")
+    print(f"Time = {warm_time:.2f}")
+    print(f"Used Routes = {warm_used_routes}")
 
-        best_route, node, position, added_time, score = Helpers.find_best_global_insertion(
-            model,
-            routes,
-            visited,
-            avg_demand,
-            avg_distance,
-            neighbors_set_array,
-            top_k=1
-        )
+    print_route_details(model, routes)
 
-        if node is None:
-            break
+    # ------------------------------------------------------------
+    # 6. Capacity-focused destroy-repair search
+    #
+    # Since capacity is the binding constraint, this tries to:
+    # - remove low profit/demand nodes
+    # - refill capacity with better nodes
+    # - accept only improving solutions
+    # ------------------------------------------------------------
+    routes, visited, best_profit, best_time = capacity_destroy_repair_search(
+        model,
+        routes,
+        visited,
+        avg_demand,
+        avg_distance,
+        neighbors_set_array,
+        iterations=1000,
+        remove_min=1,
+        remove_max=7,
+        bad_pool_size=30,
+        insertion_top_k=3,
+        seed=4,
+        protect_mandatory=False,
+        use_vnd= False
+    )
 
-        before_insert_profit = total_solution_profit(routes)
-        before_insert_time = total_solution_time(routes)
-
-        Helpers.insert_node(model, best_route, node, position, added_time)
-        visited.add(node)
-
-        after_insert_profit = total_solution_profit(routes)
-        after_insert_time = total_solution_time(routes)
-
+    # ------------------------------------------------------------
+    # 7. Final totals
+    # ------------------------------------------------------------
     total_profit, total_time, used_routes = Helpers.compute_solution_totals(routes)
 
+    print("\nFinal Solution Totals:")
+    print(f"Total Profit = {total_profit}")
+    print(f"Total Time = {total_time:.2f}")
+    print(f"Used Routes = {used_routes}")
+
+    print_route_details(model, routes)
+
+    
     routes_for_plot = [route.nodes for route in routes]
 
     plot_ctop_solution(model, routes_for_plot)
 
+    valid, report = validate_solution(
+        model,
+        routes_for_plot,
+        enforce_mandatory=False
+    )
 
-    valid, report = validate_solution(model, routes_for_plot, enforce_mandatory=False)
     if valid:
         print("\n✅ Solution is VALID.")
         print(f"🏆 Total Profit Collected: {report['total_profit']}")
         print("\nRoute Details:")
-        for i, (load, cost, profit) in enumerate(zip(report['route_loads'], report['route_costs'], report['route_profits'])):
-            print(f"Route {i} -> Load = {load}/{model.capacity}, Time = {cost:.2f}/{model.t_max}, Profit = {profit}")
 
-        rng = random.Random(4)
+        for i, (load, cost, profit) in enumerate(
+            zip(report['route_loads'], report['route_costs'], report['route_profits'])
+        ):
+            print(
+                f"Route {i} -> "
+                f"Load = {load}/{model.capacity}, "
+                f"Time = {cost:.2f}/{model.t_max}, "
+                f"Profit = {profit}"
+            )
 
-        removed_nodes = shaw_removal(
-            model,
-            routes,
-            visited,
-            rng,
-            enforce_mandatory=True,
-            remove_count=8
-        )
-
-        print("\n--- Destroy test ---")
-        print(f"Removed nodes: {removed_nodes}")
-
-        print("\nPartial solution after destroy:")
-        for idx, route in enumerate(routes):
-            print(f"Route {idx}: {route.nodes}")
-            print(f"  Load: {route.load}/{model.capacity}")
-            print(f"  Time: {route.time:.2f}/{model.t_max}")
-            print(f"  Profit: {route.profit}")
-
-        print(f"\nVisited customers after destroy: {len(visited)}")
     else:
         print("\n❌ Solution is INVALID.")
         print("Errors Found:")
+
         for error in report['errors']:
             print(f" - {error}")
 
