@@ -1,6 +1,7 @@
 import copy
 import random
-
+import math
+import random
 import Helpers
 from Time_Operators import (
     time_vnd,
@@ -19,6 +20,41 @@ def solution_is_better(new_profit, new_time, old_profit, old_time):
 
     if new_profit == old_profit and new_time < old_time - EPSILON:
         return True
+
+    return False
+
+def simulated_annealing_acceptance(
+    trial_profit,
+    trial_time,
+    current_profit,
+    current_time,
+    temperature
+):
+    """
+    Simulated annealing acceptance rule.
+
+    Profit is the primary objective.
+    Time is used only as a tie-breaker when profit is equal.
+    """
+
+    if solution_is_better(
+        trial_profit,
+        trial_time,
+        current_profit,
+        current_time
+    ):
+        return True
+
+    profit_delta = trial_profit - current_profit
+
+    if profit_delta < 0:
+        probability = math.exp(profit_delta / temperature)
+        return random.random() < probability
+
+    if profit_delta == 0 and trial_time > current_time:
+        time_delta = trial_time - current_time
+        probability = math.exp(-time_delta / temperature)
+        return random.random() < probability
 
     return False
 
@@ -232,28 +268,31 @@ def warm_start_remove_insert_loop(
         )
 
 
-def capacity_destroy_repair_search(
+def capacity_destroy_repair_search_sa(
     model,
     routes,
     visited,
     avg_demand,
     avg_distance,
     neighbors_set_array,
-    iterations=300,
+    iterations=1000,
     remove_min=1,
-    remove_max=4,
+    remove_max=7,
     bad_pool_size=30,
     insertion_top_k=3,
     seed=4,
     protect_mandatory=False,
-    use_vnd=True
+    use_vnd=True,
+    start_temperature=80.0,
+    end_temperature=1.0
 ):
     """
-    Capacity-focused destroy-repair.
+    Capacity-focused destroy-repair with simulated annealing acceptance.
 
-    Main idea:
-    Since capacity is the binding constraint, remove low profit/demand nodes
-    and try to refill the freed demand with better feasible nodes.
+    Difference from the normal version:
+    - Better solutions are always accepted.
+    - Worse solutions may be accepted with a probability.
+    - The probability decreases as temperature decreases.
     """
 
     random.seed(seed)
@@ -269,10 +308,17 @@ def capacity_destroy_repair_search(
     best_profit = current_profit
     best_time = current_time
 
-    print("\nStarting capacity destroy-repair search.")
+    print("\nStarting capacity destroy-repair search with Simulated Annealing.")
     print(f"Start Profit = {best_profit}, Start Time = {best_time:.2f}")
 
     for iteration in range(1, iterations + 1):
+
+        progress = iteration / iterations
+
+        temperature = (
+            start_temperature
+            * ((end_temperature / start_temperature) ** progress)
+        )
 
         trial_routes = copy.deepcopy(current_routes)
         trial_visited = set(current_visited)
@@ -334,19 +380,33 @@ def capacity_destroy_repair_search(
         trial_profit = total_solution_profit(trial_routes)
         trial_time = total_solution_time(trial_routes)
 
-        if solution_is_better(
+        accepted = simulated_annealing_acceptance(
             trial_profit,
             trial_time,
             current_profit,
-            current_time
-        ):
+            current_time,
+            temperature
+        )
+
+        if accepted:
+            accepted_because = "IMPROVING"
+
+            if not solution_is_better(
+                trial_profit,
+                trial_time,
+                current_profit,
+                current_time
+            ):
+                accepted_because = "SA-WORSE"
+
             current_routes = trial_routes
             current_visited = trial_visited
             current_profit = trial_profit
             current_time = trial_time
 
             print(
-                f"[ACCEPT] Iter {iteration} | "
+                f"[ACCEPT-{accepted_because}] Iter {iteration} | "
+                f"T = {temperature:.4f} | "
                 f"Removed = {nodes_to_remove} | "
                 f"Inserted = {inserted_count} | "
                 f"Profit {old_trial_profit} -> {trial_profit} | "
@@ -354,25 +414,27 @@ def capacity_destroy_repair_search(
                 flush=True
             )
 
-            if solution_is_better(
-                current_profit,
-                current_time,
-                best_profit,
-                best_time
-            ):
-                best_routes = copy.deepcopy(current_routes)
-                best_visited = set(current_visited)
-                best_profit = current_profit
-                best_time = current_time
+        if solution_is_better(
+            current_profit,
+            current_time,
+            best_profit,
+            best_time
+        ):
+            best_routes = copy.deepcopy(current_routes)
+            best_visited = set(current_visited)
+            best_profit = current_profit
+            best_time = current_time
 
-                print(
-                    f"  >>> NEW BEST: Profit = {best_profit}, Time = {best_time:.2f}",
-                    flush=True
-                )
+            print(
+                f"  >>> NEW BEST: Profit = {best_profit}, "
+                f"Time = {best_time:.2f}",
+                flush=True
+            )
 
         if iteration % 25 == 0:
             print(
                 f"Iter {iteration} | "
+                f"T = {temperature:.4f} | "
                 f"Current Profit = {current_profit}, "
                 f"Best Profit = {best_profit}, "
                 f"Best Time = {best_time:.2f}",

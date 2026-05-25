@@ -7,9 +7,8 @@ from SolutionPlotter import plot_ctop_solution
 from SolutionValidator import validate_solution
 from Capacity_Repair import (
     warm_start_remove_insert_loop,
-    capacity_destroy_repair_search
+    capacity_destroy_repair_search_sa
 )
-
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 
@@ -99,22 +98,24 @@ def main(instance_file):
     # - refill capacity with better nodes
     # - accept only improving solutions
     # ------------------------------------------------------------
-    routes, visited, best_profit, best_time = capacity_destroy_repair_search(
-        model,
-        routes,
-        visited,
-        avg_demand,
-        avg_distance,
-        neighbors_set_array,
-        iterations=1000,
-        remove_min=1,
-        remove_max=7,
-        bad_pool_size=30,
-        insertion_top_k=3,
-        seed=4,
-        protect_mandatory=False,
-        use_vnd= False
-    )
+    routes, visited, best_profit, best_time = capacity_destroy_repair_search_sa(
+    model,
+    routes,
+    visited,
+    avg_demand,
+    avg_distance,
+    neighbors_set_array,
+    iterations=5000,
+    remove_min=1,
+    remove_max=7,
+    bad_pool_size=30,
+    insertion_top_k=3,
+    seed=23,
+    protect_mandatory=False,
+    use_vnd=False,
+    start_temperature=80.0,
+    end_temperature=1.0
+)
 
     # ------------------------------------------------------------
     # 7. Final totals
