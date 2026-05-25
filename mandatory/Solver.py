@@ -1,0 +1,134 @@
+import random
+
+
+import mandatory.Helpers as Helpers
+import copy
+
+from mandatory.ILS import ILS
+from mandatory.PathRelinking import EliteSet, path_relinking
+
+from mandatory.LocalSearch import local_search
+from Solution import Route, Solution
+
+class Solver: 
+    def __init__(self, model, seed):
+        self.model = model
+        self.seed = seed
+
+        random.seed(seed)
+
+        self.avg_demand = Helpers.compute_average_demand(model)
+        self.avg_distance = Helpers.compute_average_distance(model)
+
+        (
+            self.neighbors_list_array,
+            self.neighbors_set_array
+        ) = Helpers.build_nearest_neighbors_heap(model)
+
+    
+    def insert_node(self, route, node, position, added_time):
+        route.nodes.insert(position, node)
+        route.load += self.model.nodes[node].demand
+        route.time += added_time
+        route.profit += self.model.nodes[node].profit
+
+
+
+
+    def solve_mandatory_clustered(self):
+        from mandatory.Helpers import cluster_mandatory_nodes
+        
+        # Ομαδοποίηση mandatory
+        clusters = cluster_mandatory_nodes(self.model, self.model.vehicles)
+        
+        routes = [Route() for _ in range(self.model.vehicles)]
+        visited = set()
+        
+        # Κάθε όχημα παίρνει τους mandatory της ομάδας του
+        for k, route in enumerate(routes):
+            for node_id in clusters[k]:
+                # καλύτερη θέση για τον συγκεκριμένο mandatory
+                best_pos = 1
+                best_time = float('inf')
+                for i in range(1, len(route.nodes)):
+                    a = route.nodes[i-1]
+                    b = route.nodes[i]
+                    delta = self.model.cost_matrix[a][node_id] + self.model.cost_matrix[node_id][b] - self.model.cost_matrix[a][b]
+                    new_time = route.time + delta
+                    if new_time <= self.model.t_max and route.load + self.model.nodes[node_id].demand <= self.model.capacity:
+                        if delta < best_time:
+                            best_time = delta
+                            best_pos = i
+                
+                self.insert_node(route, node_id, best_pos, best_time)
+                visited.add(node_id)
+        
+        # εισάγει τα μη mandatory με greedy τρόπο
+        while True:
+            best_route, node, position, added_time, score = self.find_best_global_insertion(routes, visited)
+            if node is None:
+                break
+            self.insert_node(best_route, node, position, added_time)
+            visited.add(node)
+        
+        solution = Solution(routes=routes, visited=visited)
+        solution.total_profit = sum(r.profit for r in routes)
+        solution.total_time = sum(r.time for r in routes)
+        solution.total_load = sum(r.load for r in routes)
+        
+        return solution
+
+
+
+    def solve_mandatory(self):
+        solution = None
+        best_profit = -1
+
+        elite = EliteSet(self.model, max_size=5, enforce_mandatory=True)
+        
+        for i in range(10):
+            candidate = self.solve_mandatory_clustered()
+            
+
+            
+            elite.try_add(candidate)
+            for elite_sol in elite.solutions:
+                if elite_sol.total_profit == candidate.total_profit:
+                    continue
+                
+                if candidate.total_profit > elite_sol.total_profit:
+                    start, end = copy.deepcopy(candidate), copy.deepcopy(elite_sol)
+                else:
+                    start, end = copy.deepcopy(elite_sol), copy.deepcopy(candidate)
+                # Εκτέλεση Path Relinking
+                pr_sol = path_relinking(self.model, start, end, enforce_mandatory=True)
+                
+
+                pr_sol = local_search(self.model, pr_sol, enforce_mandatory=True)
+                
+                if pr_sol.total_profit > best_profit:
+                    solution = pr_sol
+                    best_profit = pr_sol.total_profit
+                    
+            if candidate.total_profit > best_profit:
+                best_profit = candidate.total_profit
+                solution = candidate
+
+       
+
+        #  Local search 
+        solution = local_search(self.model, solution, enforce_mandatory=True)
+
+        #  ILS        
+
+        ils = ILS(self.model, seed=self.seed, enforce_mandatory=True)
+        ils_sol = ils.run(solution, iterations=500)
+
+        best_sol = local_search(self.model, ils_sol, enforce_mandatory=True)
+        
+        return best_sol
+
+
+
+
+    
