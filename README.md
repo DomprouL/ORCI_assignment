@@ -1,4 +1,4 @@
-# Capacitated Team Orienteering for Last-Mile Delivery
+# Capacitated Team Orienteering Problem for Last-Mile Delivery
 
 Given a fleet that cannot serve every customer within one shift, which stops should it serve, and in what order? This project solves two variants of that routing problem on the same instance of **350 customers and 5 vehicles**.
 
