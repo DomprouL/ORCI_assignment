@@ -1,52 +1,54 @@
-import io
-import os
-import sys
-from Parser import load_model
-from SolutionValidator import validate_solution, parse_solution_file
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+"""Generate and validate the two CTOP solutions."""
+import argparse
+from pathlib import Path
+from time import perf_counter
 
-def main(instance_file, solution_file, enforce_mandatory=True):
-    print(f"Loading Instance: '{instance_file}'...")
-    model = load_model(instance_file)
+from ctop.Parser import load_model
+from ctop.SolutionPlotter import infer_coordinates, plot_ctop_solution
+from ctop.SolutionValidator import parse_solution_file, validate_solution
+from mandatory.Solver import Solver as MandatorySolver
+from no_mandatory.Solver import solve_standard
 
-    print("\n--- Model Summary ---")
-    print(f"Number of nodes: {model.num_nodes} (including depot)")
-    print(f"Vehicle capacity (Q): {model.capacity}")
-    print(f"Number of vehicles (K): {model.vehicles}")
-    print(f"Time limit per route (T_max): {model.t_max}")
-    print(f"Enforce mandatory: {enforce_mandatory}")
+ROOT = Path(__file__).resolve().parent
 
-    # Validate Solution
-    if solution_file:
-        if not os.path.exists(solution_file):
-            print(f"Error: Solution file '{solution_file}' does not exist.")
-            return
 
-        print(f"\n--- Validating solution from '{solution_file}' ---")
-        routes = parse_solution_file(solution_file)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
+    args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-        print("\nRoutes Proposed:")
-        for i, route in enumerate(routes):
-            print(f"Route {i}: {route}")
+    model = load_model(ROOT / "data" / "ctop_main_instance.txt")
+    coordinates = infer_coordinates(model)
+    for scenario, label, solve, mandatory in (
+        ("mandatory", "Mandatory CTOP", lambda: MandatorySolver(model, seed=4).solve_mandatory().routes, True),
+        ("no_mandatory", "Standard CTOP", lambda: solve_standard(model), False),
+    ):
+        start = perf_counter()
+        solution_routes = solve()
+        elapsed = perf_counter() - start
+        routes = [route.nodes for route in solution_routes if len(route.nodes) > 2]
+        valid, report = validate_solution(model, routes, enforce_mandatory=mandatory)
+        if not valid:
+            raise RuntimeError(f"{label}: {'; '.join(report['errors'])}")
 
-        valid, report = validate_solution(model, routes, enforce_mandatory=enforce_mandatory)
-
-        if valid:
-            print("\n✅ Solution is VALID.")
-            print(f"🏆 Total Profit Collected: {report['total_profit']}")
-            print("\nRoute Details:")
-            for i, (load, cost, profit) in enumerate(zip(report['route_loads'], report['route_costs'], report['route_profits'])):
-                print(f"Route {i} -> Load = {load}/{model.capacity}, Time = {cost:.2f}/{model.t_max}, Profit = {profit}")
-        else:
-            print("\n❌ Solution is INVALID.")
-            print("Errors Found:")
-            for error in report['errors']:
-                print(f" - {error}")
-
-        from SolutionPlotter import plot_ctop_solution
-        plot_ctop_solution(model, routes)
+        solution_path = args.output_dir / f"solution_{scenario}.txt"
+        solution_path.write_text(
+            "".join(" ".join(map(str, route)) + "\n" for route in routes),
+            encoding="utf-8",
+        )
+        saved_routes = parse_solution_file(solution_path)
+        plot_ctop_solution(
+            model, saved_routes, coordinates, label, mandatory,
+            args.output_dir / f"routes_{scenario}.png",
+        )
+        print(
+            f"{label}: valid | profit {report['total_profit']:,} | "
+            f"route time {report['total_cost']:,.1f} | fleet {len(routes)}/{model.vehicles} | "
+            f"solver {elapsed:.2f}s",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
-    main("ctop_main_instance.txt", "solution_mandatory.txt", True)
-    main("ctop_main_instance.txt", "solution_no_mandatory.txt", False)
+    main()
