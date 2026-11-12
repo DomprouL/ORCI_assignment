@@ -48,20 +48,17 @@ The solver uses seed **4**.
 
 Inserting customer $j$ between consecutive stops $a$ and $b$ replaces the direct leg $a \to b$ with two legs. The added route time is
 
-$$
+```math
 \Delta t_{a,j,b} = c_{aj} + c_{jb} - c_{ab}.
-$$
+```
 
 An insertion consumes two resources, vehicle capacity and route time. To combine them, we divide the customer's demand $d_j$ by the mean demand $\bar d$ across all customers, and divide its added time by the mean cost $\bar c$ across all distinct pairs of nodes, including the depot. These ratios are dimensionless. A value of 1 means the insertion uses one average customer's demand or adds the time of one average leg, respectively.
 
 For a feasible insertion with a positive denominator, the score is
 
-$$
-\operatorname{score}(j \mid a,b)
-=
-\frac{p_j}{0.8\,d_j/\bar d + 0.2\,\Delta t_{a,j,b}/\bar c}
-+ 20\,\mathbf{1}_{\{d_j=1\}}.
-$$
+```math
+\operatorname{score}(j \mid a,b) = \frac{p_j}{0.8\,d_j/\bar d + 0.2\,\Delta t_{a,j,b}/\bar c} + 20\,\mathbf{1}_{\{d_j=1\}}.
+```
 
 The numerator $p_j$ is the profit collected by serving $j$. The fraction measures profit per unit of weighted resource use. The 0.8 and 0.2 weights give normalised demand four times the weight of normalised added time, so the ranking favours profitable stops that use less vehicle capacity. The indicator equals 1 for a customer with demand exactly 1 and 0 otherwise. This adds 20 points to the ranking for the smallest loads and leaves the collected profit $p_j$ unchanged.
 
