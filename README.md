@@ -39,7 +39,7 @@ The objective is to maximise the total profit of the customers served, with lowe
 
 1. **Construct 30 starting solutions.** A randomised greedy heuristic builds routes by ranking feasible insertions with the score below. It uses lists of the 100 nearest neighbours to limit the candidate search.
 2. **Improve the best start.** A remove-and-reinsert pass frees capacity used by lower-value customers and searches for more profitable combinations.
-3. **Run destroy-and-repair with simulated annealing.**At each iteration, remove between one and seven customers from selected routes, then rebuild with feasible insertions. Simulated annealing can accept a worse candidate to escape a local optimum. Logarithmic cooling reduces that probability over time.
+3. **Run destroy-and-repair with simulated annealing.** At each iteration, remove between one and seven customers from selected routes, then rebuild with feasible insertions. Simulated annealing can accept a worse candidate to escape a local optimum. Logarithmic cooling reduces that probability over time.
 4. **Polish the routes.** Variable neighbourhood descent applies 2-opt, relocation and swap moves within and between routes. Reducing travel time can create room for more profitable stops, so the solver alternates route improvement with another insertion pass, up to five times.
 
 #### How the insertion score is built
