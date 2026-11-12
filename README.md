@@ -35,8 +35,6 @@ The objective is to maximise the total profit of the customers served, with lowe
 3. **Explore between solutions.** An elite set retains strong candidates. Path relinking explores intermediate solutions between candidates, with local search refining the routes.
 4. **Perturb and repair.** Iterated local search runs for 500 iterations, using perturbations such as double-bridge moves and route rebuilding. Repair attempts to reinsert missing required customers. Candidates that still omit a required customer after repair are rejected. A final local search refines the solution, and the shared validator checks required-stop coverage and the route constraints.
 
-The solver uses seed **4**.
-
 ### Standard CTOP
 
 1. **Construct 30 starting solutions.** A randomised greedy heuristic builds routes by ranking feasible insertions with the score below. It uses lists of the 100 nearest neighbours to limit the candidate search.
@@ -57,14 +55,12 @@ An insertion consumes two resources, vehicle capacity and route time. To combine
 For a feasible insertion with a positive denominator, the score is
 
 ```math
-\operatorname{score}(j \mid a,b) = \frac{p_j}{0.8\,d_j/\bar d + 0.2\,\Delta t_{a,j,b}/\bar c} + 20\,\mathbf{1}_{\{d_j=1\}}.
+S(j \mid a,b) = \frac{p_j}{0.8\,d_j/\bar d + 0.2\,\Delta t_{a,j,b}/\bar c} + 20\,\mathbf{1}_{\{d_j=1\}}.
 ```
 
-The numerator $p_j$ is the profit collected by serving $j$. The fraction measures profit per unit of weighted resource use. The 0.8 and 0.2 weights give normalised demand four times the weight of normalised added time, so the ranking favours profitable stops that use less vehicle capacity. The indicator equals 1 for a customer with demand exactly 1 and 0 otherwise. This adds 20 points to the ranking for the smallest loads and leaves the collected profit $p_j$ unchanged.
+Here $S(j \mid a,b)$ is the insertion score. The numerator $p_j$ is the profit collected by serving $j$. The fraction measures profit per unit of weighted resource use. The 0.8 and 0.2 weights give normalised demand four times the weight of normalised added time, so the ranking favours profitable stops that use less vehicle capacity. The indicator equals 1 for a customer with demand exactly 1 and 0 otherwise. This adds 20 points to the ranking for the smallest loads and leaves the collected profit $p_j$ unchanged.
 
 At each step, the heuristic keeps the highest-scoring feasible insertion for each route and samples uniformly from up to five of those candidates. Repeating the construction 30 times explores different customer selections and route sequences. The best start is selected by collected profit, with lower total route time breaking ties.
-
-Construction uses seed **4** and destroy-and-repair uses seed **23**.
 
 ## Reproduce the results
 
